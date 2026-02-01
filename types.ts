@@ -1,5 +1,5 @@
 export enum PhotoStyle {
-  RUSTIC = 'Rustic/Dark',
+  RUSTIC = 'Luxury/Dark',
   MODERN = 'Bright/Modern',
   SOCIAL = 'Social Media (Flat Lay)',
 }
@@ -10,13 +10,20 @@ export enum ImageSize {
   SIZE_4K = '4K',
 }
 
+export enum PhotoQuality {
+  STANDARD = 'Standard',
+  PREMIUM = 'Premium',
+}
+
 export interface Dish {
   id: string;
   name: string;
   description: string;
   imageUrl?: string;
+  nutritionAnalysis?: string;
   isLoading: boolean;
   isEditing: boolean;
+  isAnalyzing: boolean;
   error?: string;
 }
 
@@ -27,4 +34,5 @@ export interface MenuAnalysisResult {
 export type GenerationConfig = {
   style: PhotoStyle;
   size: ImageSize;
+  quality: PhotoQuality;
 }
