@@ -20,6 +20,7 @@ export interface Dish {
   name: string;
   description: string;
   imageUrl?: string;
+  referencePhoto?: string;
   nutritionAnalysis?: string;
   isLoading: boolean;
   isEditing: boolean;

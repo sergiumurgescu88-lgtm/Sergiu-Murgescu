@@ -2,7 +2,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PhotoStyle, ImageSize, PhotoQuality, MenuAnalysisResult } from "../types";
 
 // Helper to get a fresh client instance. 
-// This is crucial because the API_KEY might change after the user selects a project via window.aistudio.
 const getAi = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
@@ -52,7 +51,6 @@ export const parseMenuText = async (text: string): Promise<MenuAnalysisResult> =
 const getStylePrompt = (style: PhotoStyle): string => {
   switch (style) {
     case PhotoStyle.RUSTIC:
-      // Updated to Luxury Dark (No Wood)
       return "Style: 5-star Michelin restaurant dining, moody dramatic lighting, luxurious black marble or polished dark stone surface (no wood), elegant gold or silver cutlery, rich textures, chiaroscuro effect, professional food photography, 85mm lens.";
     case PhotoStyle.MODERN:
       return "Style: Modern avant-garde fine dining, bright, airy, high-key lighting, white marble or pristine surface, minimalist artistic plating, sharp focus, clean aesthetic.";
@@ -73,56 +71,58 @@ export const generateDishImage = async (
   size: ImageSize,
   quality: PhotoQuality,
   logoBase64?: string | null,
-  locationBase64?: string | null
+  locationBase64?: string | null,
+  referenceBase64?: string | null
 ): Promise<string> => {
   try {
     const ai = getAi();
     const stylePrompt = getStylePrompt(style);
     
     let fullPrompt = "";
+    const parts: any[] = [];
 
-    if (quality === PhotoQuality.PREMIUM) {
-      // Enforce Michelin star quality and plating for Premium
+    if (referenceBase64) {
+      // High Fidelity Transformation Mode
+      const cleanRef = referenceBase64.replace(/^data:image\/\w+;base64,/, "");
+      parts.push({ inlineData: { mimeType: "image/png", data: cleanRef } });
+      
+      fullPrompt = `[TRANSFORMATION REQUEST: MICHELIN 5-STAR RE-EDIT]
+      Re-imagine the provided reference image of "${dishName}" as a Michelin-star culinary masterpiece. 
+      CRITICAL: Maintain 90% structural similarity to the original photo. Keep the exact composition, ingredient placement, and layout. 
+      UPGRADE: Enhance the details significantly. Use professional 85mm lens photography, perfect studio lighting, and high-end materials. 
+      ${dishDescription}. ${stylePrompt}. Ensure it looks like the exact same dish but prepared by a world-class chef and photographed by a professional.`;
+    } else if (quality === PhotoQuality.PREMIUM) {
       fullPrompt = `Ultra-premium Michelin 5-star quality food photography of ${dishName}, presented elegantly on a high-end designer plate. ${dishDescription}. ${stylePrompt}. Fine dining plating, culinary masterpiece, exquisite details, award-winning restaurant quality, photorealistic, 8k.`;
     } else {
-      // Standard professional quality
       fullPrompt = `Professional food photography of ${dishName}, presented on a plate. ${dishDescription}. ${stylePrompt}. High quality, photorealistic, 4k, well-lit, appetizing commercial food photography.`;
     }
 
-    const parts: any[] = [];
-    
-    // Add reference images if provided
+    // Add secondary context images
     if (locationBase64) {
-      // Clean base64 string
       const cleanLocation = locationBase64.replace(/^data:image\/\w+;base64,/, "");
       parts.push({ inlineData: { mimeType: "image/png", data: cleanLocation } });
-      fullPrompt += "\n\n[CONTEXT: LOCATION IMAGE]\nThe provided image shows the restaurant's interior. Generate the food placed on a table within this specific environment. Match the surface material, ambient lighting, and background blur of this location to make it look like the photo was taken there.";
+      fullPrompt += "\n\n[CONTEXT: LOCATION IMAGE]\nPlace the food on a table within this specific environment. Match ambient lighting and background.";
     }
 
     if (logoBase64) {
-      // Clean base64 string
       const cleanLogo = logoBase64.replace(/^data:image\/\w+;base64,/, "");
       parts.push({ inlineData: { mimeType: "image/png", data: cleanLogo } });
-      fullPrompt += "\n\n[CONTEXT: LOGO IMAGE]\nThe provided image is the restaurant logo. Integrate this logo subtly into the scene, for example printed on a high-quality napkin, engraved on a wooden salt shaker, or displayed on a small tasteful menu holder near the plate. It must look physically present in the scene, not overlaid digitally.";
+      fullPrompt += "\n\n[CONTEXT: LOGO]\nSubtly integrate this logo into the scene (e.g., on a napkin or menu holder).";
     }
 
-    // Add prompt text
     parts.push({ text: fullPrompt });
 
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-image-preview",
-      contents: {
-        parts: parts,
-      },
+      contents: { parts: parts },
       config: {
         imageConfig: {
-          imageSize: size, // '1K', '2K', or '4K'
+          imageSize: size,
           aspectRatio: style === PhotoStyle.SOCIAL ? "4:3" : "16:9",
         },
       },
     });
 
-    // Extract image
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData && part.inlineData.data) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -132,7 +132,6 @@ export const generateDishImage = async (
     throw new Error("No image data returned from API.");
   } catch (error) {
     console.error("Error generating image:", error);
-    // Explicitly rethrow so UI can catch it
     throw error;
   }
 };
@@ -146,25 +145,16 @@ export const editDishImage = async (
 ): Promise<string> => {
   try {
     const ai = getAi();
-    // Strip prefix if present for the API call
     const cleanBase64 = currentImageBase64.replace(/^data:image\/\w+;base64,/, "");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image", // Nano Banana
+      model: "gemini-2.5-flash-image",
       contents: {
         parts: [
-          {
-            inlineData: {
-              data: cleanBase64,
-              mimeType: "image/png", // Assuming PNG, or we could detect from string
-            },
-          },
-          {
-            text: `Edit this food image: ${editPrompt}. Maintain high visual quality and photorealism.`,
-          },
+          { inlineData: { data: cleanBase64, mimeType: "image/png" } },
+          { text: `Edit this food image: ${editPrompt}. Maintain high visual quality and photorealism.` },
         ],
       },
-      // Note: gemini-2.5-flash-image does NOT support imageSize or strict aspect ratio configs in the same way
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
@@ -186,22 +176,14 @@ export const editDishImage = async (
 export const analyzeDishNutrition = async (imageBase64: string): Promise<string> => {
   try {
     const ai = getAi();
-    // Strip prefix if present for the API call
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: {
         parts: [
-          {
-            inlineData: {
-              data: cleanBase64,
-              mimeType: "image/png",
-            }
-          },
-          {
-            text: "Analyze this image and identify the potential allergens and nutritional values per 100g (Calories, Energy, Protein, Fat, Carbs). Provide the information in a concise, structured text format suitable for a menu.",
-          }
+          { inlineData: { data: cleanBase64, mimeType: "image/png" } },
+          { text: "Analyze this image and identify the potential allergens and nutritional values per 100g. Provide the information in a concise, structured text format suitable for a menu." }
         ]
       }
     });
