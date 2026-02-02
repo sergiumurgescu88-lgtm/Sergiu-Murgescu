@@ -30,6 +30,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, currentStyle, currentSize, cu
   const [isEditMode, setIsEditMode] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerate = async () => {
     onUpdate(dish.id, { isLoading: true, error: undefined, nutritionAnalysis: undefined });
@@ -44,7 +45,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, currentStyle, currentSize, cu
         currentQuality,
         logoImage,
         locationImage,
-        dish.referencePhoto // Pass the 90% similarity reference photo if it exists
+        dish.referencePhoto 
       );
       onUpdate(dish.id, { imageUrl, isLoading: false });
     } catch (err) {
@@ -102,6 +103,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, currentStyle, currentSize, cu
   return (
     <>
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+      <input type="file" ref={cameraInputRef} onChange={handleFileUpload} accept="image/*" capture="environment" className="hidden" />
 
       {isExpanded && dish.imageUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4" onClick={() => setIsExpanded(false)}>
@@ -164,9 +166,18 @@ const DishCard: React.FC<DishCardProps> = ({ dish, currentStyle, currentSize, cu
           {dish.error && <div className="mb-4 text-xs text-red-400 bg-red-400/10 p-2 rounded border border-red-400/20">{dish.error}</div>}
 
           {!dish.imageUrl && !dish.isLoading ? (
-            <div className="w-full mt-auto grid grid-cols-2 gap-2">
-               <button onClick={handleGenerate} className="py-2.5 px-4 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 shadow-lg"><RefreshCw size={14} />{dish.referencePhoto ? 'Transform' : 'Generate'}</button>
-               <button onClick={() => fileInputRef.current?.click()} className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg border border-zinc-700 flex items-center justify-center gap-2"><Camera size={14} />Ref Photo</button>
+            <div className="flex flex-col gap-2 mt-auto">
+               <button onClick={handleGenerate} className="py-2.5 px-4 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 shadow-lg w-full transition-all active:scale-[0.98]">
+                 <RefreshCw size={14} />{dish.referencePhoto ? 'Transform Reference' : 'Generate AI Photo'}
+               </button>
+               <div className="grid grid-cols-2 gap-2">
+                 <button onClick={() => cameraInputRef.current?.click()} className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg border border-zinc-700 flex items-center justify-center gap-2 transition-all">
+                   <Camera size={14} />Live Cam
+                 </button>
+                 <button onClick={() => fileInputRef.current?.click()} className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg border border-zinc-700 flex items-center justify-center gap-2 transition-all">
+                   <Upload size={14} />Gallery
+                 </button>
+               </div>
             </div>
           ) : (
             dish.imageUrl && (
@@ -175,7 +186,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, currentStyle, currentSize, cu
                     <ActionButton icon={RefreshCw} label="Regenerate" onClick={handleGenerate} />
                     <ActionButton icon={Edit2} label="Magic Edit" onClick={() => setIsEditMode(true)} />
                     <ActionButton icon={ScanEye} label="Nutrition" onClick={handleAnalyze} />
-                    <ActionButton icon={Camera} label="New Ref" onClick={() => fileInputRef.current?.click()} />
+                    <ActionButton icon={Camera} label="Take Photo" onClick={() => cameraInputRef.current?.click()} />
                     <ActionButton icon={Download} label="Download" onClick={handleDownload} />
                     <ActionButton icon={Maximize2} label="Fullscreen" onClick={() => setIsExpanded(true)} />
                  </div>

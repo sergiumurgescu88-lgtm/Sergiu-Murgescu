@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { MenuAnalysisResult } from '../types';
 import { parseMenuText } from '../services/geminiService';
-import { Sparkles, ArrowRight, Loader2, Image as ImageIcon, MapPin, X, FileSpreadsheet, Camera } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, Image as ImageIcon, MapPin, X, FileSpreadsheet, Camera, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface MenuParserProps {
@@ -28,6 +28,7 @@ const MenuParser: React.FC<MenuParserProps> = ({
   const locationInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
@@ -129,6 +130,7 @@ const MenuParser: React.FC<MenuParserProps> = ({
       <input type="file" ref={locationInputRef} onChange={(e) => handleFileChange(e, onLocationChange)} accept="image/*" className="hidden" />
       <input type="file" ref={excelInputRef} onChange={handleExcelUpload} accept=".xlsx, .xls, .csv" className="hidden" />
       <input type="file" ref={photoInputRef} onChange={handlePhotoReferenceUpload} accept="image/*" className="hidden" />
+      <input type="file" ref={cameraInputRef} onChange={handlePhotoReferenceUpload} accept="image/*" capture="environment" className="hidden" />
 
       <div className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
@@ -162,36 +164,47 @@ const MenuParser: React.FC<MenuParserProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div 
             onClick={() => excelInputRef.current?.click()}
-            className="group border border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/30 rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all"
+            className="group border border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/30 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all"
           >
             {isParsingExcel ? (
-              <div className="flex items-center gap-2 text-zinc-400">
-                 <Loader2 className="animate-spin" size={16} />
-                 <span className="text-xs">Reading...</span>
+              <div className="flex flex-col items-center gap-2 text-zinc-400">
+                 <Loader2 className="animate-spin" size={20} />
+                 <span className="text-xs">Reading Spreadsheet...</span>
               </div>
             ) : (
-               <div className="flex items-center gap-2 text-zinc-500 group-hover:text-zinc-300">
-                 <FileSpreadsheet size={16} />
-                 <span className="text-xs font-medium">Upload Excel (CSV/XLSX)</span>
+               <div className="flex flex-col items-center gap-2 text-zinc-500 group-hover:text-zinc-300">
+                 <FileSpreadsheet size={24} className="mb-1" />
+                 <span className="text-xs font-semibold uppercase tracking-wider">Upload Excel (XLSX/CSV)</span>
+                 <p className="text-[10px] opacity-60">Auto-extract dish names & descriptions</p>
                </div>
             )}
           </div>
 
-          <div 
-            onClick={() => photoInputRef.current?.click()}
-            className="group border border-dashed border-orange-500/30 hover:border-orange-500/60 hover:bg-orange-500/5 rounded-xl p-3 flex items-center justify-center cursor-pointer transition-all"
-          >
-            {isProcessingPhoto ? (
-              <div className="flex items-center gap-2 text-orange-400">
-                 <Loader2 className="animate-spin" size={16} />
-                 <span className="text-xs">Processing...</span>
-              </div>
-            ) : (
-               <div className="flex items-center gap-2 text-orange-500/70 group-hover:text-orange-400">
-                 <Camera size={16} />
-                 <span className="text-xs font-medium uppercase tracking-tight">Michelin Re-edit (90% Similarity)</span>
-               </div>
-            )}
+          <div className="flex flex-col gap-2">
+            <div 
+              onClick={() => cameraInputRef.current?.click()}
+              className="group border border-dashed border-orange-500/30 hover:border-orange-500/60 hover:bg-orange-500/5 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all h-full"
+            >
+              {isProcessingPhoto ? (
+                <div className="flex flex-col items-center gap-2 text-orange-400">
+                   <Loader2 className="animate-spin" size={20} />
+                   <span className="text-xs">Processing...</span>
+                </div>
+              ) : (
+                 <div className="flex flex-col items-center gap-2 text-orange-500 group-hover:text-orange-400 text-center">
+                   <Camera size={24} className="mb-1" />
+                   <span className="text-xs font-bold uppercase tracking-wider">Take Live Photo</span>
+                   <p className="text-[10px] text-zinc-500">Instant Michelin Transformation</p>
+                 </div>
+              )}
+            </div>
+            
+            <button 
+              onClick={() => photoInputRef.current?.click()}
+              className="flex items-center justify-center gap-2 py-2 px-3 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-[10px] text-zinc-400 font-semibold uppercase tracking-widest transition-all"
+            >
+              <Upload size={12} /> Choose from Gallery
+            </button>
           </div>
         </div>
       </div>
