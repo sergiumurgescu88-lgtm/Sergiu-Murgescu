@@ -2,6 +2,7 @@
   "name": "Instant Menu Pictures",
   "description": "Professional Michelin-style food photography powered by mrdelivery.online and MrDelivery AI Agency.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

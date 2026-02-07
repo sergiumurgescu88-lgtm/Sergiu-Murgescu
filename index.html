@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Instant Menu Pictures | mrdelivery.ro</title>
-    <meta name="description" content="Professional Michelin-style food photography for restaurants. Transform your menu at mrdelivery.ro">
+    <title>Virtual Food Photographer | mrdelivery.online</title>
+    <meta name="description" content="Professional Michelin-style AI food photography for restaurants. Upload your menu and generate high-end visual assets at mrdelivery.online">
+    <meta name="keywords" content="AI food photography, virtual photographer, restaurant menu photos, mrdelivery, Michelin style food">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -20,14 +21,23 @@
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #18181b; 
+        background: #09090b; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #3f3f46; 
+        background: #27272a; 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #52525b; 
+        background: #3f3f46; 
+      }
+      @keyframes slow-pan {
+        from { background-position: 0% 50%; }
+        to { background-position: 100% 50%; }
+      }
+      .bg-glass {
+        background: rgba(9, 9, 11, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
       }
     </style>
   <script type="importmap">
@@ -46,7 +56,7 @@
 }
 </script>
 </head>
-  <body class="bg-zinc-950 text-zinc-100 min-h-screen">
+  <body class="bg-zinc-950 text-zinc-100 min-h-screen selection:bg-orange-500/30">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
