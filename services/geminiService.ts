@@ -15,108 +15,129 @@ const getBase64Data = (dataUrl: string) => {
 };
 
 /**
- * 20 FOOD PHOTOGRAPHY PROTOCOLS - MICHELIN STYLE (100% PHOTOREALISTIC)
+ * 20 FOOD PHOTOGRAPHY PROTOCOLS - MICHELIN STYLE
+ * 100% PHOTOREALISTIC - STRICT ZERO-ATMOSPHERIC POLICY
  */
-const CULINARY_PROTOCOLS: Record<string, { instructions: string; angle: string; checklist: string[] }> = {
+const CULINARY_PROTOCOLS: Record<string, { instructions: string; angle: string; shootBrief: string; checklist: string[] }> = {
   PIZZA: {
     angle: "90° (overhead/flat lay)",
-    instructions: "Create a perfect overhead photograph. Show uniform distribution of ingredients. The crust edge must look crispy with authentic char marks in natural spots (not perfect circles). Cheese should appear melted with golden-brown bubbles. Pull one slice slightly to show natural cheese stretch - the stretch must look real, not exaggerated. Natural soft lighting from side-left. Background: dark rustic wood or black marble. Sprinkle fresh basil or arugula after baking. Add a subtle gleam of olive oil that catches the light naturally.",
-    checklist: ["Perfect 90° perpendicular angle", "Cheese stretch looks physically real", "Authentic char marks (irregular, natural)", "Ingredients distributed realistically", "Natural soft lighting", "NO steam effects", "NO impossible melting"]
+    shootBrief: "Camera: Phase One XF IQ4 150MP. Lens: 80mm LS f/2.8. Lighting: ARRI SkyPanel S60-C Top-Down through double diffusion. Surface: Dark rustic wood or black marble.",
+    instructions: "Perfect 90° flat lay. Show uniform distribution of ingredients. Crust edge must look crispy with authentic Maillard char marks (irregular, natural). Cheese must appear melted with golden-brown bubbles. Pull one slice slightly to show natural cheese stretch. Background: Dark rustic wood or black marble. Sprinkle fresh basil. Subtle gleam of olive oil catching light.",
+    checklist: ["Perfect 90° perpendicular angle", "Cheese stretch looks physically real", "Authentic char marks (irregular, natural)", "Natural soft lighting (no harsh shadows)", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   BURGER: {
     angle: "45° (3/4 view)",
-    instructions: "Position camera to show both the top of the bun AND the visible side layers. Meat should look juicy with visible juice - but realistic, not dripping excessively. Melted cheese must naturally drape over edges - gravity-appropriate, not defying physics. Bun should look fresh, fluffy, with a natural sheen. Natural lighting from left-back to create realistic glow. Background: natural wood or black stone surface. Add crispy fries in background (naturally out of focus from depth of field).",
-    checklist: ["45° angle perfectly calibrated", "All layers visible from side", "Cheese drip natural and gravity-correct", "Bun looks real with natural shine", "Meat juice visible but not excessive", "NO steam rising", "Sesame seeds randomly distributed"]
+    shootBrief: "Camera: Phase One XF IQ4. Lens: 120mm LS Macro. Lighting: 3-Point ARRI SkyPanel. Key: 45° back-left to create realistic glow. Surface: Natural wood or black stone.",
+    instructions: "Position camera to show both the top of the bun AND the visible side layers. Meat should look juicy with visible juice. Melted cheese must naturally drape over edges. Bun fresh and fluffy with a natural sheen. Background: Natural wood or black stone. Crispy fries out of focus in background.",
+    checklist: ["45° angle perfectly calibrated", "All layers visible from side", "Cheese drape natural and gravity-correct", "Bun looks real with natural shine", "Meat juice visible but not excessive", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   STEAK: {
     angle: "45°",
-    instructions: "Show a caramelized crust with visible cross-hatch grill marks. If cut, show interior doneness color authentically (pink for medium-rare, etc.). Meat juices should glisten on surface naturally - real light reflection. Place steak on a modern white plate or wooden board. Add a realistic pat of melting butter on top - melting must follow real physics. Minimal garnish: fresh thyme, fleur de sel, peppercorns. Lighting from side-right to highlight texture.",
-    checklist: ["Grill marks perfectly realistic", "Interior color looks authentic", "Juiciness through real light reflection", "Seared crust texture", "Butter melts according to physics", "NO steam effects"]
+    shootBrief: "Camera: Canon EOS R5 C. Lens: 85mm f/1.2L. Lighting: ARRI SkyPanel S60-C at 50° side-back. Surface: Dark polished slate or wooden cutting board.",
+    instructions: "Show a caramelized crust with visible cross-hatch grill marks. If cut, show interior pink color (medium-rare) realistically. Meat juices glisten on surface naturally. Add a realistic pat of melting butter following real physics. Minimal garnish: fresh thyme, salt, peppercorns.",
+    checklist: ["Grill marks perfectly realistic", "Interior color authentic (if cut)", "Juiciness through real light reflection", "Butter melts according to physics", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   PASTA: {
-    angle: "90° or 45°",
-    instructions: "[90° for flat pasta or 45° for volumetric]. 90°: pasta twisted in center forming a natural 'nest'. 45°: show depth of bowl and sauce. Sauce should coat pasta uniformly but not drown it. Add main ingredients distributed aesthetically but naturally. Sprinkle fresh grated parmesan (not powder), basil or parsley. Add a realistic drizzle of olive oil. Background: rustic Italian wooden table.",
-    checklist: ["Pasta twisted naturally", "Sauce uniformly distributed", "Fresh grated parmesan looks real", "Oil catches light realistically", "Natural shadows and reflections", "NO steam effects"]
+    angle: "90° for flat pasta or 45° for volumetric",
+    shootBrief: "Camera: Sony FX3. Lens: 50mm f/1.2 GM. Lighting: Soft window-light simulation. Surface: Rustic Italian wooden table.",
+    instructions: "For 90°: elegant 'nest' twist in center. For 45°: show depth of bowl and sauce. Sauce coats pasta uniformly but not drowning. Ingredients distributed naturally. Fresh grated parmesan looks real (not powder). Realistic drizzle of olive oil.",
+    checklist: ["Pasta twisted naturally (nest)", "Sauce uniformly distributed", "Fresh grated parmesan looks real", "Herbs vibrant green", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   SALAD: {
     angle: "45° or 90°",
-    instructions: "Green leaves must look ultra-fresh, crisp, with fine water droplets (realistic dewyness). Show ingredient variety clearly. Dressing: either artistically drizzled or in a small bowl alongside. Vibrant colors: intense green, bright red, orange, white. Modern or rustic ceramic bowl. Natural bright lighting from side to make greens glisten.",
-    checklist: ["Leaves ultra-fresh and crisp", "Fine water droplets (natural)", "All ingredients visible", "Vibrant but realistic colors", "Bright airy lighting", "NO steam", "Droplets look real"]
+    shootBrief: "Camera: Hasselblad H6D-100c. Lens: 120mm Macro. Lighting: High-key ARRI SkyPanel. Surface: White marble or light wood.",
+    instructions: "Leaves ultra-fresh, crisp, with micro-droplets of water (natural dew). Ingredients visible, not hidden. Dressing artistically drizzled or alongside. Vibrant colors: deep greens, bright reds. Modern ceramic bowl.",
+    checklist: ["Leaves ultra-fresh and crisp", "Micro-droplets natural", "All ingredients visible", "Vibrant airy lighting", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   SOUPS: {
     angle: "90° or 45°",
-    instructions: "Elegant or rustic ceramic bowl, leave 2cm to rim. Cream soups: velvety texture, natural swirl of cream or seeds. Clear soups: ingredients floating naturally. Stews: dense consistency. DO NOT add steam - show heat through surface reflection and lighting. Garnish on top: fresh herbs, croutons, parmesan. Props: silver spoon, linen napkin.",
-    checklist: ["Bowl never too full", "Visible texture (smooth/chunky)", "ABSOLUTELY NO steam effects", "Fresh garnish looks real", "Lighting shows realistic liquid surface", "Ingredients float naturally"]
+    shootBrief: "Camera: Phase One XF. Lens: 80mm f/2.8. Lighting: Top-down ARRI SkyPanel through double diffusion. Surface: Rustic wood or stone.",
+    instructions: "Elegant ceramic bowl, not full (2cm to rim). Creams: show velvety texture, swirl of cream or oil. Clear: ingredients float naturally. Surface reflections must be realistic. Garnish: fresh-cut herbs, croutons.",
+    checklist: ["Bowl never too full", "Visible texture (smooth/chunky)", "Realistic surface reflections", "Ingredients float naturally", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   DESSERT_SLICE: {
     angle: "45°",
-    instructions: "Artistically placed on white plate. Show interior texture: layers of cake, cream, filling. Cut must be precise, clean-edged. Artistic sauce decoration (chocolate, coulis) following real physics. Garnish: fresh fruit, mint, chocolate shavings. Soft lighting from side-front to highlight cream textures and glaze shine.",
-    checklist: ["Interior layers visible", "Precise clean cut edge", "Artistic plating follows physics", "Fresh colorful garnish", "Michelin style precision", "NO steam effects", "Frosting looks real"]
+    shootBrief: "Camera: Phase One XF. Lens: 120mm Macro. Lighting: ARRI SkyPanel side-rake. Surface: Polished white marble or dark stone.",
+    instructions: "Show interior texture: layers, cream, filling. Clean-edged precise cut. Sauce decoration (lines, dots) following real physics. Garnish: fresh fruit, mint, chocolate shavings. Side lighting to highlight cream textures.",
+    checklist: ["Interior layers visible and realistic", "Precise clean-cut edge", "Artistic plating follows physics", "Refined Michelin style", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   WHOLE_CAKE: {
     angle: "0° (eye level)",
-    instructions: "Dramatically show height. Remove one slice to show all internal layers. Glaze or frosting perfectly applied. Natural drip of ganache or caramel following gravity realistically. Elegant cake stand. Cut slice placed in front. Soft lighting from side-back to create natural glow.",
-    checklist: ["0° angle for height", "All layers visible and realistic", "Perfect frosting application", "Natural gravity-correct drip", "Cake texture looks moist", "NO steam effects"]
+    shootBrief: "Camera: Canon EOS R5 C. Lens: 50mm f/1.2L. Lighting: Two soft ARRI SkyPanels at 45°. Surface: Elegant cake stand.",
+    instructions: "Dramatic height focus. Remove one slice to show internal layers. Frosting/Glaze smooth or textured according to style. Natural drip of ganache follows gravity realistically. Slice in front to reveal interior. Side-back lighting for natural glow.",
+    checklist: ["0° angle for dramatic height", "All layers visible and realistic", "Perfect frosting application", "Natural gravity-correct drip", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   BEVERAGES: {
     angle: "0° or 45°",
-    instructions: "Cold drinks: realistic condensation (fine droplets), crystal-clear ice. Cocktails: color layers, elaborate garnish. Coffee: crema, latte art. Glass clean, no fingerprints. Backlighting to make beverage glow and appear translucent. Modern bar background.",
-    checklist: ["Realistic condensation (cold)", "Crystal clear real ice cubes", "Fresh vibrant garnish", "Backlighting for translucency", "ABSOLUTELY NO steam effects", "Perfectly clean glass"]
+    shootBrief: "Camera: Sony FX3. Lens: 90mm Macro. Lighting: Strong backlighting through glass. Surface: Polished black granite bar or elegant table.",
+    instructions: "Realistic condensation (micro-droplets) for cold drinks. Crystal-clear ice geometry. Coffee: show crema and latte art. Clean glass, no fingerprints. Backlighting to make liquid glow and appear translucent.",
+    checklist: ["Realistic condensation (cold)", "Crystal clear real ice", "Backlighting for translucency", "Clean glassware", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   BREAKFAST: {
     angle: "45° or 0°",
-    instructions: "Eggs: 45°, liquid yolk flowing realistically. Pancakes: 0° stack height, syrup dripping naturally, butter pat melting via physics. Bowls: 90° overhead, toppings arranged geometrically but naturally. Bright, airy, morning light quality.",
-    checklist: ["Correct angle per type", "Liquid yolk visible and realistic", "Syrup drip gravity-correct", "Butter melts according to physics", "Morning light - bright and cheerful", "NO steam effects"]
+    shootBrief: "Camera: Hasselblad X2D. Lens: XCD 55V. Lighting: Natural morning light simulation (5000K). Surface: Light oak or white marble.",
+    instructions: "Eggs: 45°, liquid yolk ready to burst. Pancakes: 0°, stack height focus, syrup dripping naturally. Morning light quality: bright and optimistic. Garnish: bacon, avocado, toast.",
+    checklist: ["Liquid yolk physics (eggs)", "Syrup drip gravity (pancakes)", "Morning light quality", "Fresh appetizing vibe", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   SANDWICHES: {
     angle: "45°",
-    instructions: "Cut diagonally to show interior layers. Bread: crispy exterior (if toasted), fluffy interior. Ingredients fresh and abundant. Sauce visible but controlled. Placed on sandwich paper or rustic plate. Natural lighting from side to highlight bread texture.",
-    checklist: ["Cut to show interior clearly", "All layers visible and distinct", "Textured bread looks real", "Controlled sauce", "Casual but premium vibe", "NO steam effects", "Ingredients naturally compressed"]
+    shootBrief: "Camera: Sony A7R V. Lens: 50mm f/1.2 GM. Lighting: Side-lighting for bread texture. Surface: Polished concrete or rustic wood.",
+    instructions: "Diagonal cut to reveal interior layers. Bread: crispy exterior, fluffy interior. Ingredients fresh, colorful, abundant. Sauce visible but controlled. Natural lighting highlights bread texture and freshness.",
+    checklist: ["Diagonal cut for interior visibility", "Distinct layer visibility", "Textured bread looks real", "Controlled sauce application", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   ASIAN: {
-    angle: "Type-specific",
-    instructions: "Sushi: 90° overhead - artistic arrangement, vibrant colors, wasabi and ginger. Ramen: 45° - bowl depth, noodles, chashu, soft egg. Broth sheen focus. Cultural authenticity mandatory. Traditional props (chopsticks).",
-    checklist: ["Cultural authenticity", "Vibrant natural colors", "Traditional props", "ABSOLUTELY NO steam effects", "Rice grains look individual", "Fresh visible ingredients"]
+    angle: "Type-specific (90° for Sushi, 45° for Ramen)",
+    shootBrief: "Camera: Phase One XF. Lens: 80mm f/2.8. Lighting: Neutral 5500K. Surface: Black slate or dark ceramic.",
+    instructions: "Sushi: 90° artistic arrangement, vibrant natural fish colors. Ramen: 45°, bowl depth focus, broth surface sheen. Cultural authenticity in plating. Chopsticks placed perfectly.",
+    checklist: ["Cultural authenticity lock", "Vibrant natural fish colors", "Noodles/Ingredients float naturally", "Traditional props", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   MEXICAN: {
     angle: "45°",
-    instructions: "Tacos: 2-3 tacos, filling abundant, tortilla naturally folded. Burritos: cut diagonally, interior layers visible. Quesadillas: triangles, melted cheese visible. Rustic plate. Vibrant, colorful lighting. Festive vibe.",
-    checklist: ["Interior visible (cut/filling)", "Vibrant colors (green, red, yellow)", "Melted cheese looks real", "Festive vibe", "NO steam effects", "Cheese stretches realistically"]
+    shootBrief: "Camera: Canon EOS R5. Lens: 35mm f/1.8. Lighting: Vibrant ARRI SkyPanel (5000K). Surface: Modern textured stoneware.",
+    instructions: "Tacos: 2-3 tacos, filling visible and abundant. Burritos: diagonal cut, interior layers visible. Quesadillas: melted cheese stretch. Vibrant colors: green (cilantro/lime), red (salsa), white (sour cream). Festive atmosphere.",
+    checklist: ["Filling architecture visibility", "Vibrant color palette", "Traditional props", "Cheese stretch realism", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   APPETIZERS: {
     angle: "90° (overhead)",
-    instructions: "Aesthetic and varied arrangement. Diverse vibrant colors. Charcuterie boards: artistic folds, whole/cut cheeses, fruits, nuts, jam bowls. Everything visually accessible. Uniform soft lighting. Wooden board or slate background.",
-    checklist: ["Perfect 90° overhead angle", "Visual and color variety", "Artistic accessible arrangement", "Party-ready appearance", "NO steam effects", "Natural spacing"]
+    shootBrief: "Camera: Phase One IQ4. Lens: 80mm f/2.8. Lighting: Large overhead ARRI SkyPanel. Surface: Polished marble slab or wooden board.",
+    instructions: "Aesthetic varied arrangement. Organically or geometrically organized. Visible variety of colors and textures. Items visually accessible with distinct negative space. Organised party-ready look.",
+    checklist: ["Perfect 90° flat lay", "Visual and color variety", "Artistic organization", "Organized abundance", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   SEAFOOD: {
     angle: "45°",
-    instructions: "Fish: crispy golden skin, white delicate flaky texture. Shrimp: pink-orange and glistening. Shellfish: open and fresh. Garnish: lemon, parsley, butter. Clean lighting making seafood glisten naturally. Freshness is key.",
-    checklist: ["Fish: crispy skin, flaky texture", "Glistening shellfish", "Fresh visible lemon", "NO steam effects", "Fish skin has realistic texture", "Lighting highlights natural sheen"]
+    shootBrief: "Camera: Hasselblad X2D. Lens: 90mm Macro. Lighting: Cool luxury 6000K key. Surface: White polished marble.",
+    instructions: "Fish: crispy golden skin, white flaky meat. Shrimp/Shellfish: pink-orange and glistening. Fresh lemon wedges, parsley, melted butter. Nautical feel. Seafood must look freshly caught and moist.",
+    checklist: ["Fish flaky texture definition", "Glistening fresh shellfish", "Natural seafood colors", "Lighting highlights moisture", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   PREMIUM_PASTA: {
     angle: "45° or 90°",
-    instructions: "High-end presentation. Risotto: 90° or 45°, creamy 'all'onda' texture, truffles or saffron highlighted. Carbonara: 90° nest, fresh grated parmesan. Elegant white plate. Finishing: olive oil drizzle, ground pepper.",
-    checklist: ["Perfect texture (risotto/sauce)", "Premium ingredients highlighted", "Artistic refined plating", "Michelin fine dining style", "NO steam effects", "Rice grains visible in risotto"]
+    shootBrief: "Camera: Phase One XF. Lens: 120mm Macro. Lighting: ARRI SkyPanel side-back. Surface: Polished black granite or elegant porcelain.",
+    instructions: "Fine-dining presentation. Risotto: 'all’onda' wave texture. Premium garnishes: truffles, mushrooms, saffron. Glossy sauce emulsion. Michelin refined style.",
+    checklist: ["All’onda wave texture (risotto)", "Premium ingredients highlighted", "Refined Michelin plating", "Glossy sauce lock", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   GRILL_BBQ: {
     angle: "45°",
-    instructions: "Visible char marks, glistening BBQ glaze, exterior caramelization. Meat looks succulent. Casual but appetizing on wooden cutting board. Warm rustic lighting highlighting glaze and char naturally. Vibe: summer BBQ.",
-    checklist: ["Visible appetizing char marks", "Glistening glaze (sauce)", "ABSOLUTELY NO smoke effects", "Succulent meat", "Warm rustic lighting", "Char marks look real"]
+    shootBrief: "Camera: Canon R5 C. Lens: 50mm f/1.2. Lighting: Warm cinema 4000K key. Surface: Honed dark concrete or wood platter.",
+    instructions: "Highlight glistening glaze and Maillard caramelization. Char marks authentic and irregular. Meat succulent and moist. Casual but premium presentation. NO SMOKE.",
+    checklist: ["Authentic irregular char marks", "Glistening BBQ glaze", "Succulent meat texture", "Warm rustic lighting", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   VEGETARIAN: {
     angle: "45° or 90°",
-    instructions: "Emphasis on color and freshness. Diverse textures (spinach, avocado, pumpkin). Bowls (90°) with grains and nuts arranged geometrically but naturally. Artisanal ceramic. Bright natural lighting. Wholesome vibe.",
-    checklist: ["Vibrant diverse colors", "Evident freshness in ingredients", "Varied textures (crispy/creamy)", "Artistic colorful plating", "Bright natural lighting", "NO steam effects"]
+    shootBrief: "Camera: Sony A7R IV. Lens: 90mm Macro. Lighting: High-key natural light simulation. Surface: Light grey stone or artisanal ceramic.",
+    instructions: "Vibrancy and freshness focus. Chromatic colors: deep greens, bright oranges, purples. Diverse textures (crispy, creamy, crunchy). Geometric/modern arrangement. Wholesome nourishing vibe.",
+    checklist: ["Chromatic vibrant colors", "Evident freshness", "Varied textures mapping", "Artistic colorful plating", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   PREMIUM_BRUNCH: {
     angle: "45°",
-    instructions: "Eggs Benedict: hollandaise naturally flowing over poached egg, yolk about to run. Avocado Toast: artisan bread, perfectly mashed avocado. French Toast: stack with syrup drip. Soft morning light.",
-    checklist: ["Liquid yolk visible and realistic", "Hollandaise/syrup dripping naturally", "Toast: crispy and golden", "Bright morning light", "Instagram-worthy plating", "NO steam effects"]
+    shootBrief: "Camera: Phase One XF. Lens: 80mm LS. Lighting: Weekend morning window-light simulation. Surface: White marble.",
+    instructions: "Benedict: hollandaise flowing according to fluid dynamics, yolk ready to run. Avocado Toast: artisan grilled bread, perfectly mashed. Indulgent, weekend morning luxury. Instagram-worthy aesthetic.",
+    checklist: ["Hollandaise fluid dynamics", "Liquid yolk physics", "Luxury brunch aesthetic", "Bright morning light", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   },
   SPECIAL_DESSERTS: {
-    angle: "Varies",
-    instructions: "Ice Cream: 45°, creamy texture, slight melting for realism. Profiteroles: 45°, glossy chocolate glaze, golden puff pastry. Crème Brûlée: 90°/45°, perfectly cracked caramelized sugar crust with spoon. Decadent appearance.",
-    checklist: ["Highlighted texture (creamy/crispy)", "Glossy glazes look real", "Elegant refined plating", "Appetite-inducing lighting", "Melting follows real physics", "NO steam effects"]
+    angle: "Varies (45° or 90°)",
+    shootBrief: "Camera: Hasselblad H6D. Lens: 120mm Macro. Lighting: Warm 3200K softbox. Surface: Polished black granite or designer plate.",
+    instructions: "Ice Cream: perfect scoops, slight melting for realism. Profiteroles: glossy chocolate, cream filling. Crème Brûlée: perfectly cracked caramel crust. Decadent, high-end dessert bar style.",
+    checklist: ["Sugar/Caramel texture focus", "Mirror-glaze reflections", "Physics-correct melting", "Decadent appearance", "ZERO-STEAM/ZERO-SMOKE POLICY"]
   }
 };
 
@@ -135,8 +156,8 @@ interface DishArchetype {
 const getDishArchetype = (text: string): DishArchetype => {
   const lower = text.toLowerCase();
   
-  if (lower.includes('pizza')) return { category: 'PIZZA', protocolKey: 'PIZZA', lockedElements: ['Crust char pattern lock', 'Cheese blister distribution', 'Topping coordinates'], vessel: 'Modern 360mm white ceramic pizza plate', bestAngle: '90° Overhead', similarityThreshold: '98-100%' };
-  if (lower.includes('burger')) return { category: 'BURGER', protocolKey: 'BURGER', lockedElements: ['Layer architecture lock', 'Cheese drape viscosity', 'Meat surface sheen'], vessel: 'Modern matte black ceramic (280mm)', bestAngle: '45° Hero', similarityThreshold: '97-100%' };
+  if (lower.includes('pizza')) return { category: 'PIZZA', protocolKey: 'PIZZA', lockedElements: ['Crust char pattern lock', 'Cheese blister distribution', 'Topping coordinates'], vessel: 'Modern ceramic pizza stone', bestAngle: '90° Overhead', similarityThreshold: '98-100%' };
+  if (lower.includes('burger')) return { category: 'BURGER', protocolKey: 'BURGER', lockedElements: ['Layer architecture lock', 'Cheese drape viscosity', 'Meat surface sheen'], vessel: 'Modern matte black ceramic', bestAngle: '45° Hero', similarityThreshold: '97-100%' };
   if (lower.includes('steak') || lower.includes('beef')) return { category: 'STEAK', protocolKey: 'STEAK', lockedElements: ['Sear mark geometry', 'Medium-rare internal color lock', 'Jus pooling viscosity'], vessel: 'Large white bone-china', bestAngle: '45° Diner View', similarityThreshold: '98-100%' };
   if (lower.includes('pasta')) {
     if (lower.includes('risotto') || lower.includes('truffle') || lower.includes('lobster')) return { category: 'PREMIUM_PASTA', protocolKey: 'PREMIUM_PASTA', lockedElements: ['All’onda texture lock', 'Garnish micro-placement', 'Gloss level 8/10'], vessel: 'Wide-rimmed white porcelain bowl', bestAngle: '45° Angle', similarityThreshold: '97-99%' };
@@ -146,7 +167,7 @@ const getDishArchetype = (text: string): DishArchetype => {
   if (lower.includes('soup') || lower.includes('stew') || lower.includes('cream of')) return { category: 'SOUPS', protocolKey: 'SOUPS', lockedElements: ['Liquid surface tension', 'Ingredient float buoyancy', 'Swirl geometry'], vessel: 'Designer ceramic bowl', bestAngle: '90° Overhead', similarityThreshold: '96-98%' };
   if (lower.includes('cake') || lower.includes('pastry') || lower.includes('dessert')) {
     if (lower.includes('slice') || lower.includes('piece')) return { category: 'DESSERT_SLICE', protocolKey: 'DESSERT_SLICE', lockedElements: ['Layer definition', 'Precision cut edges', 'Drip gravity'], vessel: 'Modern white plate', bestAngle: '45° Angle', similarityThreshold: '98-100%' };
-    if (lower.includes('ice cream') || lower.includes('sorbet')) return { category: 'SPECIAL_DESSERTS', protocolKey: 'SPECIAL_DESSERTS', lockedElements: ['Melt geometry', 'Scoop texture definition', 'Topping coordinates'], vessel: 'Modern dessert glass', bestAngle: '45° Angle', similarityThreshold: '97-99%' };
+    if (lower.includes('ice cream') || lower.includes('sorbet') || lower.includes('gelato')) return { category: 'SPECIAL_DESSERTS', protocolKey: 'SPECIAL_DESSERTS', lockedElements: ['Melt geometry', 'Scoop texture definition', 'Topping coordinates'], vessel: 'Modern dessert glass', bestAngle: '45° Angle', similarityThreshold: '97-99%' };
     return { category: 'WHOLE_CAKE', protocolKey: 'WHOLE_CAKE', lockedElements: ['Volumetric cake height', 'Frosting smoothness lock', 'Decoration geometry'], vessel: 'Minimalist cake stand', bestAngle: '0° Eye Level', similarityThreshold: '98-100%' };
   }
   if (lower.includes('cocktail') || lower.includes('drink') || lower.includes('juice') || lower.includes('coffee')) return { category: 'BEVERAGE', protocolKey: 'BEVERAGES', lockedElements: ['Liquid refraction', 'Condensation micro-droplet pattern', 'Ice clarity index'], vessel: 'Ultra-clear crystal glass', bestAngle: '0° Eye Level', similarityThreshold: '99-100%' };
@@ -156,10 +177,10 @@ const getDishArchetype = (text: string): DishArchetype => {
   }
   if (lower.includes('sandwich') || lower.includes('wrap') || lower.includes('panini')) return { category: 'SANDWICH', protocolKey: 'SANDWICHES', lockedElements: ['Interior layer definition', 'Bread texture crunch', 'Component compression'], vessel: 'Modern causal plate', bestAngle: '45° Angle', similarityThreshold: '96-99%' };
   if (lower.includes('sushi') || lower.includes('ramen') || lower.includes('noodle') || lower.includes('asian')) return { category: 'ASIAN', protocolKey: 'ASIAN', lockedElements: ['Rice grain separation', 'Broth gloss lock', 'Cultural plating symmetry'], vessel: 'Slate or black ceramic', bestAngle: '90° or 45°', similarityThreshold: '98-100%' };
-  if (lower.includes('taco') || lower.includes('mexican') || lower.includes('burrito')) return { category: 'MEXICAN', protocolKey: 'MEXICAN', lockedElements: ['Filling abundance lock', 'Cheese stretch realism', 'Cilantro micro-coordinates'], vessel: 'Rustic modern plate', bestAngle: '45° Angle', similarityThreshold: '97-100%' };
-  if (lower.includes('appetizer') || lower.includes('platter') || lower.includes('board') || lower.includes('finger food')) return { category: 'APPETIZER', protocolKey: 'APPETIZERS', lockedElements: ['Geometric distribution', 'Item variety count', 'Board material texture'], vessel: 'Polished wooden board or slate', bestAngle: '90° Overhead', similarityThreshold: '96-98%' };
+  if (lower.includes('taco') || lower.includes('mexican') || lower.includes('burrito')) return { category: 'MEXICAN', protocolKey: 'MEXICAN', lockedElements: ['Filling abundance lock', 'Cheese stretch realism', 'Cilantro micro-coordinates'], vessel: 'Modern textured stoneware', bestAngle: '45° Angle', similarityThreshold: '97-100%' };
+  if (lower.includes('appetizer') || lower.includes('platter') || lower.includes('board') || lower.includes('finger food')) return { category: 'APPETIZER', protocolKey: 'APPETIZERS', lockedElements: ['Geometric distribution', 'Item variety count', 'Board material texture'], vessel: 'Polished marble slab', bestAngle: '90° Overhead', similarityThreshold: '96-98%' };
   if (lower.includes('fish') || lower.includes('shrimp') || lower.includes('lobster') || lower.includes('seafood')) return { category: 'SEAFOOD', protocolKey: 'SEAFOOD', lockedElements: ['Skin sear texture', 'Segment flake definition', 'Lemon wedge coordinates'], vessel: 'Modern white ceramic', bestAngle: '45° Angle', similarityThreshold: '97-99%' };
-  if (lower.includes('bbq') || lower.includes('grill') || lower.includes('ribs') || lower.includes('wings')) return { category: 'GRILL', protocolKey: 'GRILL_BBQ', lockedElements: ['Char mark irregularity', 'Glaze specular highlight', 'Caramelization depth'], vessel: 'Rustic modern wooden board', bestAngle: '45° Angle', similarityThreshold: '98-100%' };
+  if (lower.includes('bbq') || lower.includes('grill') || lower.includes('ribs') || lower.includes('wings')) return { category: 'GRILL', protocolKey: 'GRILL_BBQ', lockedElements: ['Char mark irregularity', 'Glaze specular highlight', 'Caramelization depth'], vessel: 'Modern dark ceramic platter', bestAngle: '45° Angle', similarityThreshold: '98-100%' };
   if (lower.includes('vegan') || lower.includes('vegetarian')) return { category: 'VEGETARIAN', protocolKey: 'VEGETARIAN', lockedElements: ['Chromatic vibrancy lock', 'Texture contrast mapping', 'Ingredient integrity'], vessel: 'Artisanal modern ceramic', bestAngle: '45° or 90°', similarityThreshold: '98-100%' };
 
   return { category: 'GENERAL', protocolKey: 'GENERAL', lockedElements: ['Michelin plating standards', 'Ingredient freshness lock', 'Volumetric ratio accuracy'], vessel: 'Pristine white ceramic', bestAngle: '45° Standard', similarityThreshold: '96-98%' };
@@ -194,7 +215,7 @@ const getAestheticProfile = (style: PhotoStyle): AestheticProfile => {
 };
 
 /**
- * PROTOCOL 1: ADD LOGO (Natural Brand Integration)
+ * PROTOCOL: ADD LOGO (Natural Brand Integration)
  */
 const BRANDING_PROTOCOL = `
 [PROTOCOL: ADD LOGO]
@@ -208,14 +229,14 @@ RULES: Never cover food. Size: 2-5% of total image area. Blending: Multiply/Soft
 `;
 
 /**
- * PROTOCOL 2: ADD LOC (Location/Background)
+ * PROTOCOL: ADD LOC (Location/Background)
  */
 const ENVIRONMENT_PROTOCOL = `
 [PROTOCOL: ADD LOC]
 Integrate user-provided location backgrounds naturally using Step-by-Step Scene Construction.
 1. Table Sync: 
    - Beach -> light wooden/wicker.
-   - Garden -> rustic wooden/wrought iron.
+   - Garden -> light oak/wrought iron.
    - Rooftop -> modern metal/composite.
    - Restaurant -> match existing decor.
 2. Placement: Foreground dish positioned 25-40% from bottom, scale proportional to perspective (25-30cm plate equivalent).
@@ -235,7 +256,7 @@ const constructMasterPrompt = (
   hasLogo: boolean,
   hasLocation: boolean
 ): string => {
-  const protocol = CULINARY_PROTOCOLS[archetype.protocolKey] || { instructions: "Follow high-end Michelin culinary photography standards.", angle: archetype.bestAngle, checklist: ["Authentic textures", "Natural shadows"] };
+  const protocol = CULINARY_PROTOCOLS[archetype.protocolKey] || { instructions: "Follow high-end Michelin culinary photography standards.", angle: archetype.bestAngle, shootBrief: "High-end commercial gear.", checklist: ["Authentic textures", "Natural shadows"] };
   const locks = archetype.lockedElements.map((l, i) => `${i + 1}. ${l}`).join('\n');
   const checklist = protocol.checklist.map(c => `✅ ${c}`).join('\n');
 
@@ -245,6 +266,7 @@ MANDATE: Create a 100% photorealistic commercial production asset. €30,000+ Pr
 
 1. CATEGORY PROTOCOL: ${archetype.protocolKey}
    - RECOMMENDED ANGLE: ${protocol.angle}
+   - PROFESSIONAL SHOOT BRIEF: ${protocol.shootBrief}
    - SPECIFIC INSTRUCTIONS: ${protocol.instructions}
    - DESCRIPTION CONTEXT: ${dishDescription}
 
@@ -253,10 +275,10 @@ MANDATE: Create a 100% photorealistic commercial production asset. €30,000+ Pr
    - STRUCTURAL LOCKS:
 ${locks}
 
-3. CRITICAL REALISM RULES (ZERO-STEAM POLICY):
-   - ❌ NO steam effects. ❌ NO artificial blur. ❌ NO impossible physics. ❌ NO perfect symmetry.
+3. CRITICAL REALISM RULES:
+   - ❌ NO AI artifacts. ❌ NO impossible physics. ❌ NO perfect symmetry.
    - ❌ NO oversaturated colors. ❌ NO artificial glow. ❌ NO painted-on details.
-   - ❌ ABSOLUTELY ZERO STEAM, SMOKE, OR VAPOR.
+   - NOTE: Scenario-specific atmospheric effects (steam/volumetric light) allowed only where explicitly requested by special protocols.
 
 4. REALITY CHECKLIST:
 ${checklist}
@@ -373,7 +395,7 @@ export const editDishImage = async (currentImageBase64: string, editPrompt: stri
     contents: {
       parts: [
         { inlineData: { data: getBase64Data(currentImageBase64), mimeType: getMimeType(currentImageBase64) } },
-        { text: `MAGIC EDIT: ${editPrompt}. MANDATE: 96% Similarity Lock. ZERO-STEAM POLICY. Cinema Lighting Consistency.` },
+        { text: `MAGIC EDIT: ${editPrompt}. MANDATE: Hyper-realistic 100% photorealism. Maintain lighting consistency. Apply scenario-specific physics.` },
       ],
     },
   });
@@ -399,8 +421,27 @@ export const analyzeDishNutrition = async (imageBase64: string): Promise<string>
 export async function* chatWithConcierge(message: string, history: any[]) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const chat = ai.chats.create({
-    model: 'gemini-3-flash-preview',
-    config: { systemInstruction: "You are the MrDelivery Virtual Concierge. Expert in Michelin photography and production aesthetics." },
+    model: 'gemini-3-pro-preview',
+    config: { systemInstruction: `You are Maya, a friendly AI assistant for Instant Menu Pictures, a professional menu photography app powered by AI.
+
+Your role:
+- Help users create stunning menu photography
+- Explain app features clearly and concisely (Logo upload, Location backgrounds, Magic Edits, Prep Team, etc.)
+- Guide users through workflows step-by-step
+- Answer questions about credits (50 free welcome credits, €0.20 per credit), pricing, and account management
+- Be enthusiastic but not overwhelming
+- Keep responses SHORT for voice delivery (under 100 words)
+- Remember conversation context and refer back to previous messages
+
+When responding:
+1. Keep it conversational and natural
+2. Use "you" and "I" language
+3. Ask follow-up questions to clarify needs
+4. Provide specific, actionable guidance
+5. Mention credit costs when relevant (1 credit for generation/edit)
+6. If you don't know something, offer to connect them with support
+
+Remember: Your responses will be spoken aloud, so prioritize clarity and brevity.` },
   });
   const stream = await chat.sendMessageStream({ message });
   for await (const chunk of stream) if (chunk.text) yield chunk.text;
@@ -416,7 +457,8 @@ export const speakText = async (text: string): Promise<ArrayBuffer> => {
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
     },
   });
-  const base64 = response.candidates[0].content.parts[0].inlineData.data;
+  const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!base64) throw new Error("TTS failed to return audio.");
   const binary = window.atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -430,7 +472,7 @@ export const connectLiveConcierge = async (callbacks: any) => {
     callbacks,
     config: {
       responseModalities: [Modality.AUDIO],
-      systemInstruction: "Live Concierge for ultra-high-end culinary consulting.",
+      systemInstruction: "You are Maya, the Live MrDelivery Concierge. Expert in Michelin-quality commercial production. Speak clearly, elegantly, and helpfully.",
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
       outputAudioTranscription: {},
       inputAudioTranscription: {},

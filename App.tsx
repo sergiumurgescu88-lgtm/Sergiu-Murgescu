@@ -1,11 +1,16 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+/* Added Plus to the import list from lucide-react */
+import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus } from 'lucide-react';
 import MenuParser from './components/MenuParser';
 import DishCard from './components/DishCard';
 import Snowfall from './components/Snowfall';
 import ChatBot from './components/ChatBot';
-import { Dish, PhotoStyle, ImageSize, PhotoQuality, STYLE_TOOLTIPS } from './types';
+import Auth from './components/Auth';
+import Pricing from './components/Pricing';
+import AdminPanel from './components/AdminPanel';
+import UserDashboard from './components/UserDashboard';
+import { Dish, PhotoStyle, ImageSize, PhotoQuality, STYLE_TOOLTIPS, User, Currency, ActivityLog } from './types';
 import JSZip from 'jszip';
 
 const MrDeliveryLogo = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
@@ -37,9 +42,23 @@ const MrDeliveryLogo = ({ size = 24, className = "" }: { size?: number, classNam
   </svg>
 );
 
+const MOCK_USERS: User[] = [
+  { id: '1', email: 'admin@mrdelivery.ro', fullName: 'Infrastructure Admin', credits: 9999, role: 'admin', joinedAt: '2023-01-01', totalGenerations: 1250, isLoggedIn: true, isEmailVerified: true, preferredCurrency: 'EUR' },
+  { id: '2', email: 'chef.paul@restaurateur.com', fullName: 'Chef Paul Bocuse', credits: 125, role: 'user', joinedAt: '2024-02-15', totalGenerations: 82, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'EUR' },
+  { id: '3', email: 'elena.popescu@bistro.ro', fullName: 'Elena Popescu', credits: 42, role: 'user', joinedAt: '2024-03-10', totalGenerations: 15, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'RON' },
+  { id: '4', email: 'john.doe@grillhouse.us', fullName: 'John Doe', credits: 5, role: 'user', joinedAt: '2024-04-01', totalGenerations: 124, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'USD' },
+  { id: '5', email: 'michelin.fan@gourmet.fr', fullName: 'Marc Veyrat', credits: 50, role: 'user', joinedAt: '2024-05-20', totalGenerations: 3, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'EUR' },
+];
+
+const MOCK_LOGS: ActivityLog[] = [
+  { id: 'l1', userId: '2', userName: 'Chef Paul Bocuse', action: 'GENERATE', details: 'Pizza Michelin - Standard (1:1)', creditsAffected: -1, timestamp: new Date().toISOString() },
+  { id: 'l2', userId: '4', userName: 'John Doe', action: 'PURCHASE', details: 'Elite 100 Credits Top-Up', creditsAffected: 100, timestamp: new Date(Date.now() - 3600000).toISOString() },
+  { id: 'l3', userId: '3', userName: 'Elena Popescu', action: 'EDIT', details: 'Magic Retouch - Truffle Pasta', creditsAffected: -1, timestamp: new Date(Date.now() - 7200000).toISOString() },
+  { id: 'l4', userId: '1', userName: 'Infrastructure Admin', action: 'ADJUST', details: 'Manual Credit Injection (Operator 4)', creditsAffected: 50, timestamp: new Date(Date.now() - 86400000).toISOString() },
+];
+
 const App: React.FC = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
-  // Priority Style Initialization
   const [style, setStyle] = useState<PhotoStyle>(PhotoStyle.NATURAL_DAYLIGHT);
   const [size, setSize] = useState<ImageSize>(ImageSize.SIZE_1K);
   const [quality, setQuality] = useState<PhotoQuality>(PhotoQuality.PREMIUM);
@@ -52,6 +71,18 @@ const App: React.FC = () => {
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [isZipping, setIsZipping] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
+
+  // Auth & System States
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showUserDashboard, setShowUserDashboard] = useState(false);
+  const [lowCreditAlert, setLowCreditAlert] = useState<string | null>(null);
+
+  // Global Infrastructure Tracking
+  const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(MOCK_LOGS);
 
   const activeGenerationsCount = dishes.filter(d => d.isLoading || d.isEditing).length;
   const isGenerationLimitReached = activeGenerationsCount >= 3;
@@ -80,6 +111,10 @@ const App: React.FC = () => {
   };
 
   const handleDishesParsed = (parsedDishes: { name: string; description: string; referencePhoto?: string }[], referencePhoto?: string) => {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
     const newDishes = parsedDishes.map((d) => ({
       ...d,
       id: Math.random().toString(36).substr(2, 9),
@@ -93,6 +128,32 @@ const App: React.FC = () => {
   };
 
   const updateDish = (id: string, updates: Partial<Dish>) => {
+    const dish = dishes.find(d => d.id === id);
+    if (updates.imageUrl && !dish?.imageUrl && user) {
+      if (user.credits <= 0) {
+        setLowCreditAlert("CRITICAL: Production halted. Studio credits exhausted.");
+        setShowPricing(true);
+        return;
+      }
+      
+      const newCredits = user.credits - 1;
+      const updatedUser = { ...user, credits: newCredits, totalGenerations: user.totalGenerations + 1 };
+      setUser(updatedUser);
+      
+      // Update infrastructure DB
+      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      setActivityLogs(prev => [{
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        userName: user.fullName,
+        action: 'PRODUCE',
+        details: `${dish?.name} (${style})`,
+        creditsAffected: -1,
+        timestamp: new Date().toISOString()
+      }, ...prev]);
+
+      if (newCredits <= 10) setLowCreditAlert(`SYSTEM WARNING: credits low (${newCredits} left).`);
+    }
     setDishes((prev) => prev.map((dish) => (dish.id === id ? { ...dish, ...updates } : dish)));
   };
 
@@ -122,106 +183,241 @@ const App: React.FC = () => {
       const content = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
-      link.href = url; link.download = "menu-photos.zip";
+      link.href = url; link.download = `production_bundle_${new Date().getTime()}.zip`;
       document.body.appendChild(link); link.click();
       document.body.removeChild(link); URL.revokeObjectURL(url);
-    } catch (error) { console.error("Failed to zip files", error); } finally { setIsZipping(false); }
+    } catch (error) { console.error("Session Export failed", error); } finally { setIsZipping(false); }
   };
 
-  if (checkingKey) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
+  const handleAuthComplete = (newUser: User) => {
+    if (newUser.email.toLowerCase().includes('admin') || newUser.email.toLowerCase().includes('infra')) {
+      newUser.role = 'admin';
+    }
+    setUser(newUser);
+    setAllUsers(prev => {
+      const existing = prev.find(u => u.email === newUser.email);
+      if (existing) return prev.map(u => u.email === newUser.email ? { ...u, isLoggedIn: true } : u);
+      return [...prev, { ...newUser, joinedAt: new Date().toISOString(), totalGenerations: 0 }];
+    });
+    setShowAuth(false);
+  };
+
+  const handlePurchase = (credits: number) => {
+    if (user) {
+      const updatedUser = { ...user, credits: user.credits + credits };
+      setUser(updatedUser);
+      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      setActivityLogs(prev => [{
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        userName: user.fullName,
+        action: 'PURCHASE',
+        details: 'Liquidity Injection: Credit Package',
+        creditsAffected: credits,
+        timestamp: new Date().toISOString()
+      }, ...prev]);
+      setShowPricing(false);
+      setLowCreditAlert(null);
+    }
+  };
+
+  const updateOtherUserCredits = (userId: string, amount: number) => {
+    const targetUser = allUsers.find(u => u.id === userId);
+    setAllUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const updated = { ...u, credits: Math.max(0, u.credits + amount) };
+        if (user && user.id === userId) setUser(updated);
+        return updated;
+      }
+      return u;
+    }));
+    
+    setActivityLogs(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      userId: user?.id || 'admin',
+      userName: user?.fullName || 'Infrastructure System',
+      action: 'ADMIN_ADJUST',
+      details: `Credit Adjustment: ${targetUser?.fullName} (${amount > 0 ? '+' : ''}${amount})`,
+      creditsAffected: amount,
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+  };
+
+  const handleUserUpdate = (updates: Partial<User>) => {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    setUser(updated);
+    setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
+  };
+
+  const getCreditColor = (credits: number) => {
+    if (credits >= 20) return 'text-green-500';
+    if (credits >= 5) return 'text-orange-500';
+    return 'text-red-500';
+  };
+
+  if (checkingKey) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" size={40} strokeWidth={1} /></div>;
 
   if (!apiKeyReady) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col items-center justify-center p-4 text-center">
-         <div className="w-32 h-32 bg-white/5 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(255,75,75,0.2)] border border-white/5 mb-10 overflow-hidden backdrop-blur-md relative group">
+      <div className="min-h-screen bg-[#050505] text-zinc-200 flex flex-col items-center justify-center p-4 text-center">
+         <div className="w-32 h-32 bg-white/5 rounded-[3rem] flex items-center justify-center shadow-[0_0_80px_rgba(255,75,75,0.1)] border border-white/5 mb-10 overflow-hidden backdrop-blur-md relative group">
             <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <MrDeliveryLogo size={100} />
          </div>
-         <h1 className="text-5xl font-serif font-bold text-white mb-2 tracking-tight">Virtual<span className="text-orange-500">Photographer</span></h1>
-         <p className="text-sm text-zinc-500 mb-8 font-medium uppercase tracking-[0.2em]">Official mrdelivery.online Platform</p>
+         <h1 className="text-6xl font-serif font-bold text-white mb-4 tracking-tight">Studio<span className="text-orange-500">Access</span></h1>
+         <p className="text-[11px] text-zinc-500 mb-10 font-black uppercase tracking-[0.4em]">Proprietary Michelin Engine • mrdelivery.ro</p>
          
-         <div className="max-w-md mb-8 p-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-left">
-           <h4 className="text-orange-500 font-bold flex items-center gap-2 mb-2"><CreditCard size={18} /> Billing Access Required</h4>
-           <p className="text-zinc-400 text-xs leading-relaxed mb-4">
-             Gemini 3 Pro and Image models require a paid billing project. If you are seeing quota errors, ensure you have set up a paid plan in your Google Cloud Console.
+         <div className="max-w-md mb-10 p-10 bg-zinc-900/40 border border-white/5 rounded-[2.5rem] text-left backdrop-blur-3xl shadow-2xl">
+           <h4 className="text-orange-500 font-bold flex items-center gap-3 mb-4 uppercase tracking-widest text-sm"><CreditCard size={20} /> Infrastructure Lock</h4>
+           <p className="text-zinc-400 text-xs leading-relaxed mb-6">
+             Paid Studio Models require valid Cloud Billing. High-fidelity production (Gemini 3 Pro) consumes external compute units.
            </p>
            <a 
              href="https://ai.google.dev/gemini-api/docs/billing" 
              target="_blank" 
              rel="noopener noreferrer" 
-             className="text-orange-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 hover:underline"
+             className="text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:text-orange-400 transition-colors"
            >
-             Billing Documentation <ExternalLink size={10} />
+             Protocol Documentation <ExternalLink size={12} />
            </a>
          </div>
 
-         <button onClick={handleSelectKey} className="flex items-center gap-2 px-8 py-4 bg-white text-zinc-900 font-bold rounded-xl hover:bg-zinc-200 transition-all shadow-2xl active:scale-95 group"><Key size={18} className="group-hover:rotate-12 transition-transform" /> Connect Paid Studio</button>
+         <button onClick={handleSelectKey} className="flex items-center gap-3 px-12 py-5 bg-white text-zinc-900 font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl active:scale-95 group"><Key size={20} className="group-hover:rotate-45 transition-transform duration-500" /> Unlock Studio Slot</button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-200 selection:bg-orange-500/30 overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#050505] text-zinc-200 selection:bg-orange-500/30 overflow-x-hidden relative">
       {isSnowing && <Snowfall />}
+      {showAuth && <Auth onAuthComplete={handleAuthComplete} onClose={() => setShowAuth(false)} />}
+      {showPricing && <Pricing onPurchase={handlePurchase} onClose={() => setShowPricing(false)} currentCurrency={user?.preferredCurrency || 'EUR'} onCurrencyChange={(c) => user && setUser({...user, preferredCurrency: c})} />}
+      {showAdmin && user?.role === 'admin' && (
+        <AdminPanel 
+          users={allUsers} 
+          logs={activityLogs} 
+          onClose={() => setShowAdmin(false)} 
+          onUpdateUserCredits={updateOtherUserCredits}
+          onRefresh={() => {}}
+        />
+      )}
+      {showUserDashboard && user && (
+        <UserDashboard 
+          user={user} 
+          logs={activityLogs} 
+          onClose={() => setShowUserDashboard(false)} 
+          onLogout={() => { setUser(null); setShowUserDashboard(false); }}
+          onOpenPricing={() => { setShowPricing(true); setShowUserDashboard(false); }}
+          onUpdateUser={handleUserUpdate}
+        />
+      )}
       
       {showResetConfirmation && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white mb-2">New Shoot?</h3>
-            <p className="text-sm text-zinc-400 mb-6">Resetting will clear all current session photos.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowResetConfirmation(false)} className="px-4 py-2 text-sm text-zinc-300">Cancel</button>
-              <button onClick={resetApp} className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg">Reset Studio</button>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] max-w-md w-full p-10 shadow-2xl shadow-black/80">
+            <h3 className="text-2xl font-serif font-bold text-white mb-4">Initialize New Session?</h3>
+            <p className="text-sm text-zinc-400 mb-8 leading-relaxed">Current production data will be purged from active memory. Ensure all assets are exported.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={resetApp} className="w-full py-4 bg-orange-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-orange-500 transition-all">Clear Memory</button>
+              <button onClick={() => setShowResetConfirmation(false)} className="w-full py-4 bg-zinc-800 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:text-white transition-all">Abort Reset</button>
             </div>
           </div>
         </div>
       )}
 
-      <header className="sticky top-0 z-[150] bg-zinc-950/90 border-b border-zinc-900/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4 cursor-pointer overflow-hidden" onClick={requestReset}>
-            <div className="bg-zinc-900 p-1 sm:p-1.5 rounded-lg sm:rounded-xl border border-zinc-800 flex items-center justify-center shrink-0">
-              <MrDeliveryLogo size={24} className="sm:w-7 sm:h-7" />
+      {lowCreditAlert && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] animate-in slide-in-from-top-10 duration-500">
+          <div className="bg-zinc-900 border border-orange-500/30 rounded-3xl px-8 py-4 flex items-center gap-6 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl ring-1 ring-orange-500/20">
+            <AlertTriangle className="text-orange-500 animate-pulse" size={24} />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-0.5">Critical Priority</span>
+              <span className="text-xs font-bold text-white">{lowCreditAlert}</span>
             </div>
-            <div className="flex items-center">
-              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate max-w-[100px] sm:max-w-none">InstantPhoto</h1>
-              <div className="ml-2 sm:ml-3 p-1 sm:p-1.5 bg-sky-950/30 rounded-lg border border-sky-500/20 text-sky-400 shrink-0">
-                <Snowflake size={12} className={`sm:w-3.5 sm:h-3.5 ${isSnowing ? 'animate-pulse' : ''}`} onClick={() => setIsSnowing(!isSnowing)} />
+            <button onClick={() => setShowPricing(true)} className="px-5 py-2.5 bg-white text-zinc-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-zinc-200 transition-all shadow-xl active:scale-95">Top Up</button>
+            <button onClick={() => setLowCreditAlert(null)} className="p-2 text-zinc-500 hover:text-white transition-colors"><X size={18} /></button>
+          </div>
+        </div>
+      )}
+
+      <header className="sticky top-0 z-[150] bg-zinc-950/80 border-b border-white/5 backdrop-blur-3xl shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-1 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-5 cursor-pointer shrink-0" onClick={requestReset}>
+            <div className="bg-zinc-900 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-zinc-800 flex items-center justify-center shrink-0 shadow-inner ring-1 ring-white/5">
+              <MrDeliveryLogo size={24} className="sm:w-8 sm:h-8" />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <h1 className="text-sm sm:text-xl font-serif font-bold text-white tracking-tighter">InstantPhoto<span className="text-orange-500 italic">.ai</span></h1>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-[6px] sm:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-600 hidden xs:inline">Production Mode</span>
+                <div className="flex items-center gap-1 px-1 sm:px-1.5 py-0.5 bg-sky-500/10 rounded-md border border-sky-500/20 text-sky-400 group/snow" onClick={(e) => { e.stopPropagation(); setIsSnowing(!isSnowing); }}>
+                  <Snowflake size={8} className={`${isSnowing ? 'animate-spin-slow' : 'opacity-40'} sm:w-[10px] sm:h-[10px]`} />
+                  <span className="text-[6px] sm:text-[7px] font-black uppercase tracking-tighter">{isSnowing ? 'ON' : 'OFF'}</span>
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 sm:gap-6">
-             <button 
-               onClick={handleSelectKey}
-               className="text-[9px] sm:text-[10px] font-bold text-zinc-500 hover:text-orange-400 flex items-center gap-1.5 sm:gap-2 uppercase tracking-widest transition-colors shrink-0"
-               title="Update API Key"
-             >
-               <Key size={12} className="sm:w-3.5 sm:h-3.5" /> <span className="hidden xs:inline">Switch Studio</span>
-             </button>
-             <div className="h-4 sm:h-6 w-px bg-zinc-800 shrink-0"></div>
-             <a href="https://mrdelivery.online" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 sm:gap-3 text-zinc-200 hover:text-white transition-all font-semibold shrink-0">
-               <MrDeliveryLogo size={20} className="sm:w-6 sm:h-6" />
-               <span className="tracking-tight text-[11px] sm:text-sm flex items-center gap-1.5">
-                 <span className="hidden sm:inline">mrdelivery.online</span>
-                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-orange-500 text-white border border-orange-400/30 uppercase shadow-[0_0_10px_rgba(234,88,12,0.5)]">Agency</span>
-               </span>
-             </a>
+          <div className="flex items-center gap-1 sm:gap-6 ml-auto">
+             {user ? (
+               <div className="flex items-center gap-1.5 sm:gap-5">
+                 {user.role === 'admin' && (
+                   <button 
+                     onClick={() => setShowAdmin(true)}
+                     className="flex items-center gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 bg-zinc-900 hover:bg-orange-600/10 border border-zinc-800 hover:border-orange-500/40 rounded-xl sm:rounded-2xl transition-all text-orange-500 group shadow-lg"
+                   >
+                     <ShieldCheck size={14} className="group-hover:scale-110 transition-transform duration-300 sm:w-4 sm:h-4" />
+                     <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest hidden md:inline">Admin</span>
+                   </button>
+                 )}
+                 <button 
+                   onClick={() => setShowPricing(true)}
+                   className="flex items-center gap-1.5 sm:gap-4 px-2.5 sm:px-5 py-2 sm:py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl sm:rounded-2xl transition-all group shadow-xl ring-1 ring-white/5"
+                 >
+                   <Coins size={14} className={`${getCreditColor(user.credits)} sm:w-[18px] sm:h-[18px]`} />
+                   <div className="flex flex-col items-start leading-none">
+                     <span className={`text-xs sm:text-sm font-black ${getCreditColor(user.credits)}`}>{user.credits}</span>
+                     <span className="text-[6px] sm:text-[8px] font-black text-zinc-600 uppercase tracking-tighter hidden sm:inline">Credits</span>
+                   </div>
+                   <div className="ml-1 p-0.5 sm:p-1 bg-orange-600 text-white rounded-md sm:rounded-lg group-hover:scale-110 transition-all shadow-xl shadow-orange-950/40 hidden xs:flex">
+                     <Plus size={8} className="sm:w-[10px] sm:h-[10px]" />
+                   </div>
+                 </button>
+                 <div className="flex items-center gap-2 sm:gap-4 pl-1.5 sm:pl-6 border-l border-zinc-800">
+                   <div className="relative group/avatar cursor-pointer shrink-0" onClick={() => setShowUserDashboard(true)}>
+                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-[1rem] bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700 overflow-hidden shadow-2xl ring-1 ring-white/10 group-hover/avatar:ring-orange-500/40 transition-all">
+                       {user.profilePhoto ? <img src={user.profilePhoto} alt="" /> : <UserIcon size={16} className="sm:w-5 sm:h-5" />}
+                     </div>
+                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-zinc-950 sm:w-2.5 sm:h-2.5 sm:border-2"></div>
+                   </div>
+                   <button onClick={() => setUser(null)} className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all hidden sm:block" title="Terminate Session">
+                     <LogOut size={20} />
+                   </button>
+                 </div>
+               </div>
+             ) : (
+               <button 
+                 onClick={() => setShowAuth(true)}
+                 className="px-3 sm:px-8 py-2 sm:py-3 bg-white text-zinc-900 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] rounded-xl sm:rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl active:scale-95"
+               >
+                 Authorize
+               </button>
+             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:py-12 relative z-10">
+      <main className="max-w-7xl mx-auto px-6 py-12 sm:py-24 relative z-10">
         {step === 1 && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] sm:min-h-[70vh] animate-in fade-in duration-1000">
-            <div className="text-center mb-8 sm:mb-12 max-w-4xl">
-              <div className="inline-block px-4 py-1.5 sm:px-5 sm:py-2 mb-6 sm:mb-8 rounded-full bg-zinc-900/80 border border-zinc-800 text-[9px] sm:text-[10px] font-black text-orange-500 tracking-[0.3em] uppercase">
-                Powered by MrDelivery AI Agency
+          <div className="flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-1000">
+            <div className="text-center mb-12 max-w-4xl">
+              <div className="inline-block px-4 py-1.5 mb-8 rounded-full bg-zinc-900/50 border border-zinc-800 text-[9px] font-black text-orange-500/80 tracking-[0.3em] uppercase shadow-xl backdrop-blur-md">
+                Infrastructure by MrDelivery AI Agency
               </div>
-              <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif font-bold text-white mb-3 sm:mb-4 leading-tight">Instant Menu Pictures</h1>
-              <h2 className="text-3xl sm:text-4xl md:text-6xl font-serif font-medium text-zinc-500/80 mb-6 sm:mb-10 italic">Michelin Style</h2>
-              <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed mb-8 sm:mb-12">
-                Turn any text or photo into a stunning menu image, customized with your logo and restaurant decor. Edit dishes to perfection, keep authenticity, and create premium visuals for websites, delivery apps, and social media—without costly professional photographers.
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight tracking-tight text-balance">Instant Menu Pictures</h1>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-medium text-zinc-600 mb-10 italic">Michelin Cinematic Engine</h2>
+              <p className="text-sm sm:text-base text-zinc-500 max-w-2xl mx-auto leading-relaxed mb-12 font-medium">
+                Unified AI production for restaurant visionaries. Transform text or raw reference captures into high-prestige culinary assets without professional photographic logistics.
               </p>
             </div>
             <MenuParser onDishesParsed={handleDishesParsed} logoImage={logoImage} locationImage={locationImage} onLogoChange={setLogoImage} onLocationChange={setLocationImage} />
@@ -229,14 +425,16 @@ const App: React.FC = () => {
         )}
 
         {step === 2 && (
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="animate-in fade-in slide-in-from-bottom-10 duration-1000">
             {globalError === "quota_exceeded" && (
-              <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="text-orange-500 shrink-0" size={20} />
+              <div className="mb-10 p-8 bg-orange-600/5 border border-orange-500/20 rounded-[2.5rem] flex flex-col sm:flex-row items-center justify-between gap-8 backdrop-blur-3xl shadow-2xl">
+                <div className="flex items-center gap-6">
+                  <div className="p-4 bg-orange-600/20 rounded-2xl border border-orange-500/30">
+                    <AlertCircle className="text-orange-500" size={32} />
+                  </div>
                   <div>
-                    <p className="text-sm font-bold text-white">Billing Restriction Detected (429)</p>
-                    <p className="text-[11px] text-zinc-400">Gemini 3 Pro models require a paid billing project. Please switch keys or use "Standard" quality.</p>
+                    <p className="text-xl font-serif font-bold text-white leading-tight mb-1">Production Protocol Restriction (429)</p>
+                    <p className="text-xs text-zinc-500 leading-relaxed max-w-md">Cloud Infrastructure limit reached for Premium Models. Switch to Standard Efficiency or verify Cloud Billing configurations.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -244,71 +442,76 @@ const App: React.FC = () => {
                     href="https://ai.google.dev/gemini-api/docs/billing" 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-[10px] font-bold text-orange-400 hover:underline flex items-center gap-1 uppercase tracking-widest"
+                    className="flex-1 sm:flex-none text-[10px] font-black text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-widest text-center"
                   >
-                    Billing Docs <ExternalLink size={10} />
+                    Cloud Documentation
                   </a>
-                  <button onClick={handleSelectKey} className="flex-1 sm:flex-none px-4 py-2 bg-white text-zinc-900 text-[10px] font-black uppercase tracking-widest rounded-lg">Switch Key</button>
+                  <button onClick={handleSelectKey} className="flex-1 sm:flex-none px-8 py-4 bg-white text-zinc-900 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl hover:bg-zinc-200 transition-all">Switch Node</button>
                 </div>
               </div>
             )}
 
-            <div className="mb-10 p-4 sm:p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl sm:rounded-3xl flex flex-col gap-4 sm:gap-6 backdrop-blur-xl shadow-2xl relative overflow-visible">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">Aesthetic Specialist Protocols <span className="text-zinc-600 hidden xs:inline">(Hover for details)</span></span>
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                      Studio Slots: <span className={isGenerationLimitReached ? 'text-orange-500' : 'text-green-500'}>{activeGenerationsCount}/3</span>
-                    </span>
+            <div className="mb-16 p-8 bg-zinc-900/40 border border-white/5 rounded-[3rem] flex flex-col gap-10 backdrop-blur-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] ring-1 ring-white/5 overflow-visible">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Settings2 className="text-orange-500" size={20} />
+                    <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em]">Production Specialists Protocol</span>
+                  </div>
+                  <div className="flex items-center gap-5 bg-zinc-950/80 p-3 rounded-2xl border border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+                      <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
+                        Studio Slots: {activeGenerationsCount}/3
+                      </span>
+                    </div>
                     {isGenerationLimitReached && (
-                      <span className="text-[10px] font-bold text-orange-500 uppercase flex items-center gap-2 animate-pulse">
-                        <Loader2 size={12} className="animate-spin" /> Capacity Reached
+                      <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-2">
+                        <Loader2 size={14} className="animate-spin" /> QUEUE FULL
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-56 overflow-y-auto p-2 sm:p-4 bg-zinc-950 rounded-xl sm:rounded-2xl border border-zinc-800 custom-scrollbar overflow-visible">
+                <div className="flex flex-wrap gap-2.5 max-h-[400px] overflow-y-auto p-6 bg-zinc-950/50 rounded-[2.5rem] border border-zinc-900 custom-scrollbar overflow-visible ring-1 ring-inset ring-white/5">
                   {Object.values(PhotoStyle).map((s) => (
                     <div key={s} className="relative group">
                       <button 
                         onClick={() => setStyle(s)} 
-                        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[9px] sm:text-[11px] font-semibold tracking-wide rounded-lg sm:rounded-xl transition-all duration-300 border normal-case whitespace-nowrap ${
+                        className={`px-6 py-3 text-[10px] font-bold tracking-widest rounded-xl transition-all duration-500 border uppercase ${
                           style === s 
-                            ? 'bg-orange-600 border-orange-500 text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] scale-[1.05] z-10' 
-                            : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-orange-500/40 hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(234,88,12,0.2)]'
+                            ? 'bg-orange-600 border-orange-400 text-white shadow-[0_15px_30px_rgba(234,88,12,0.4)] -translate-y-1 scale-105 z-10' 
+                            : 'bg-zinc-900/80 border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-800'
                         }`}
                       >
                         {s}
                       </button>
                       
-                      {/* HOVER TOOLTIP */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-zinc-950/95 border border-zinc-800 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] pointer-events-none backdrop-blur-md">
-                        <div className="text-[11px] text-white font-bold mb-1 border-b border-zinc-800 pb-1">{s}</div>
-                        <p className="text-[10px] text-zinc-400 leading-relaxed">{STYLE_TOOLTIPS[s]}</p>
-                        <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-950 border-r border-b border-zinc-800 transform rotate-45"></div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-72 p-5 bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] pointer-events-none backdrop-blur-2xl ring-1 ring-white/10 translate-y-2 group-hover:translate-y-0">
+                        <div className="text-xs text-white font-black mb-2 border-b border-zinc-800 pb-2 uppercase tracking-widest">{s}</div>
+                        <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">{STYLE_TOOLTIPS[s]}</p>
+                        <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-zinc-950 border-r border-b border-zinc-800 transform rotate-45"></div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8 pt-4 border-t border-zinc-800/50">
-                <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-12 w-full lg:w-auto">
-                  <div className="flex flex-col items-center sm:items-start gap-2 w-full sm:w-auto">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">Output Quality</span>
-                    <div className="flex bg-zinc-950 p-1 rounded-lg sm:rounded-xl border border-zinc-800 w-full sm:w-auto justify-center">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-10 pt-10 border-t border-white/5">
+                <div className="flex flex-col sm:flex-row items-center gap-12 w-full lg:w-auto">
+                  <div className="flex flex-col items-start gap-4 w-full sm:w-auto">
+                    <span className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-2">Compute Fidelity</span>
+                    <div className="flex bg-zinc-950 p-2 rounded-2xl border border-zinc-900 w-full sm:w-auto ring-1 ring-inset ring-white/5 shadow-inner">
                       {Object.values(PhotoQuality).map((q) => (
-                        <button key={q} onClick={() => setQuality(q)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${quality === q ? 'bg-zinc-800 text-orange-400 shadow-md' : 'text-zinc-600 hover:text-zinc-300'}`}>{q}</button>
+                        <button key={q} onClick={() => setQuality(q)} className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${quality === q ? 'bg-zinc-800 text-orange-500 shadow-xl border border-orange-500/20' : 'text-zinc-600 hover:text-zinc-400'}`}>{q}</button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center sm:items-start gap-2 w-full sm:w-auto">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">Resolution</span>
-                    <div className="flex bg-zinc-950 p-1 rounded-lg sm:rounded-xl border border-zinc-800 w-full sm:w-auto justify-center">
+                  <div className="flex flex-col items-start gap-4 w-full sm:w-auto">
+                    <span className="text-[11px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-2">Spatial Density</span>
+                    <div className="flex bg-zinc-950 p-2 rounded-2xl border border-zinc-900 w-full sm:w-auto ring-1 ring-inset ring-white/5 shadow-inner">
                       {Object.values(ImageSize).map((s) => (
-                        <button key={s} onClick={() => setSize(s)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${size === s ? 'bg-zinc-800 text-orange-400 shadow-md' : 'text-zinc-600 hover:text-zinc-300'}`}>{s}</button>
+                        <button key={s} onClick={() => setSize(s)} className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${size === s ? 'bg-zinc-800 text-orange-500 shadow-xl border border-orange-500/20' : 'text-zinc-600 hover:text-zinc-400'}`}>{s}</button>
                       ))}
                     </div>
                   </div>
@@ -316,15 +519,15 @@ const App: React.FC = () => {
 
                 <div className="flex gap-4 w-full lg:w-auto">
                   {dishes.some(d => d.imageUrl) && (
-                    <button onClick={handleDownloadAll} disabled={isZipping} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 sm:px-10 py-3.5 sm:py-4 bg-white text-zinc-900 text-[11px] sm:text-sm font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95">
-                      {isZipping ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />} Export Session
+                    <button onClick={handleDownloadAll} disabled={isZipping} className="flex-1 lg:flex-none flex items-center justify-center gap-4 px-12 py-5 bg-white text-zinc-900 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] shadow-[0_20px_40px_rgba(255,255,255,0.1)] transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-50">
+                      {isZipping ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />} Archival Export
                     </button>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 sm:gap-14">
               {dishes.map((dish) => (
                 <DishCard 
                   key={dish.id} 
@@ -346,16 +549,26 @@ const App: React.FC = () => {
       
       <ChatBot />
 
-      <footer className="py-12 sm:py-20 text-center border-t border-zinc-900/50">
-        <div className="flex items-center justify-center gap-3 mb-4 sm:mb-6">
-           <a href="https://mrdelivery.online" className="text-zinc-500 hover:text-orange-500 transition-colors">
-              <Globe2 size={20} />
+      <footer className="py-24 text-center border-t border-white/5">
+        <div className="flex items-center justify-center gap-6 mb-10">
+           <a href="https://mrdelivery.ro" target="_blank" className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 hover:text-orange-500 transition-all shadow-xl hover:scale-110 active:scale-90">
+              <Globe2 size={24} />
            </a>
         </div>
-        <p className="text-zinc-600 text-[8px] sm:text-[10px] font-black tracking-[0.3em] sm:tracking-[0.5em] uppercase px-4">
-          &copy; {new Date().getFullYear()} MrDelivery AI Agency • mrdelivery.online
+        <p className="text-zinc-700 text-[10px] font-black tracking-[0.6em] uppercase px-6">
+          &copy; {new Date().getFullYear()} MrDelivery AI Agency • Proprietary Infrastructure • mrdelivery.ro
         </p>
       </footer>
+
+      <style>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 12s linear infinite;
+        }
+      `}</style>
     </div>
   );
 };

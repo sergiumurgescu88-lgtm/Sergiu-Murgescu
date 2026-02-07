@@ -109,6 +109,8 @@ export interface Dish {
   nutritionAnalysis?: string;
   logoImage?: string;
   locationImage?: string;
+  magicLogoPrompt?: string;
+  magicLocationPrompt?: string;
   isLoading: boolean;
   isEditing: boolean;
   isAnalyzing: boolean;
@@ -123,4 +125,42 @@ export type GenerationConfig = {
   style: PhotoStyle;
   size: ImageSize;
   quality: PhotoQuality;
+}
+
+// Authentication & Credit Types
+export type Currency = 'EUR' | 'USD' | 'RON';
+export type UserRole = 'user' | 'admin';
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  credits: number;
+  profilePhoto?: string;
+  preferredCurrency: Currency;
+  isLoggedIn: boolean;
+  isEmailVerified: boolean;
+  role: UserRole;
+  joinedAt: string;
+  totalGenerations: number;
+  lastLogin?: string;
+}
+
+export interface CreditTransaction {
+  id: string;
+  type: 'purchase' | 'usage' | 'bonus' | 'refund';
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  date: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  creditsAffected: number;
+  timestamp: string;
 }

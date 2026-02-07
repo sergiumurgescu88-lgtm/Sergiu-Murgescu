@@ -1,78 +1,136 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, User, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { chatWithConcierge, speakText, connectLiveConcierge } from '../services/geminiService';
+import { MessageCircle, X, Send, Loader2, Bot, User, Mic, MicOff, Volume2, VolumeX, Play, Square, Headphones, Settings, History, Info } from 'lucide-react';
+import { chatWithConcierge, speakText } from '../services/geminiService';
 
 interface Message {
   role: 'user' | 'model';
   text: string;
+  timestamp: string;
 }
+
+type AgentState = 'IDLE' | 'LISTENING' | 'PROCESSING' | 'SPEAKING';
 
 const ChatBot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Welcome to MrDelivery AI Concierge. I am your expert consultant in Michelin-style food photography and menu aesthetics. How can I assist your culinary vision today?' }
+    { 
+      role: 'model', 
+      text: 'Hi there! I\'m Maya, your Michelin photography expert. How can I help you elevate your menu today?',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
   ]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [currentState, setCurrentState] = useState<AgentState>('IDLE');
   const [isTtsEnabled, setIsTtsEnabled] = useState(true);
   
-  // Real-time transcription state
-  const [liveUserInput, setLiveUserInput] = useState('');
-  const [liveModelOutput, setLiveModelOutput] = useState('');
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Voice interaction refs
   const audioContextRef = useRef<AudioContext | null>(null);
-  const nextStartTimeRef = useRef(0);
-  const sessionRef = useRef<any>(null);
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Auto-scroll logic
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping, liveUserInput, liveModelOutput]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, currentState]);
 
-  const playAudioBuffer = async (buffer: ArrayBuffer) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    }
-    const ctx = audioContextRef.current;
-    
-    // Decode manual PCM (or raw) as per guidelines
-    const dataInt16 = new Int16Array(buffer);
-    const frameCount = dataInt16.length;
-    const audioBuffer = ctx.createBuffer(1, frameCount, 24000);
-    const channelData = audioBuffer.getChannelData(0);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i] / 32768.0;
-    }
+  // Initialize Speech Recognition (Web Speech API)
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
 
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
-    
-    nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
-    source.start(nextStartTimeRef.current);
-    nextStartTimeRef.current += audioBuffer.duration;
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        handleSend(transcript);
+      };
+
+      recognitionRef.current.onerror = () => {
+        setCurrentState('IDLE');
+      };
+
+      recognitionRef.current.onend = () => {
+        if (currentState === 'LISTENING') setCurrentState('IDLE');
+      };
+    }
+  }, [currentState]);
+
+  const stopSpeaking = () => {
+    if (activeSourceRef.current) {
+      try {
+        activeSourceRef.current.stop();
+      } catch (e) {}
+      activeSourceRef.current = null;
+    }
+    setCurrentState('IDLE');
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
+  const playResponse = async (text: string) => {
+    if (!isTtsEnabled) {
+      setCurrentState('IDLE');
+      return;
+    }
 
-    const userMsg = input.trim();
+    try {
+      setCurrentState('SPEAKING');
+      const buffer = await speakText(text);
+      
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+      const ctx = audioContextRef.current;
+      
+      // Decode PCM
+      const dataInt16 = new Int16Array(buffer);
+      const audioBuffer = ctx.createBuffer(1, dataInt16.length, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      
+      source.onended = () => {
+        setCurrentState('IDLE');
+        activeSourceRef.current = null;
+      };
+
+      activeSourceRef.current = source;
+      source.start();
+    } catch (err) {
+      console.error('TTS Playback failed', err);
+      setCurrentState('IDLE');
+    }
+  };
+
+  const handleSend = async (msgText: string = input) => {
+    const text = msgText.trim();
+    if (!text) return;
+
+    if (currentState === 'SPEAKING') stopSpeaking();
+
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setIsTyping(true);
+    const userMsg: Message = { 
+      role: 'user', 
+      text, 
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setCurrentState('PROCESSING');
 
     try {
       let fullResponse = '';
-      const stream = chatWithConcierge(userMsg, messages);
+      const stream = chatWithConcierge(text, messages);
       
-      setMessages(prev => [...prev, { role: 'model', text: '' }]);
+      const botMsg: Message = { 
+        role: 'model', 
+        text: '', 
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      };
+      setMessages(prev => [...prev, botMsg]);
       
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -83,206 +141,180 @@ const ChatBot: React.FC = () => {
         });
       }
 
-      if (isTtsEnabled) {
-        const audioBuffer = await speakText(fullResponse);
-        await playAudioBuffer(audioBuffer);
-      }
+      await playResponse(fullResponse);
     } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, { role: 'model', text: 'I apologize, I am experiencing a temporary technical interruption. Please try again in a moment.' }]);
-    } finally {
-      setIsTyping(false);
+      console.error('Concierge Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: 'I apologize, I hit a technical snag. Can we try that again?', 
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+      setCurrentState('IDLE');
     }
   };
 
-  const toggleVoice = async () => {
-    if (isVoiceActive) {
-      sessionRef.current?.close();
-      setIsVoiceActive(false);
-      setLiveUserInput('');
-      setLiveModelOutput('');
+  const toggleTalk = () => {
+    if (currentState === 'LISTENING') {
+      recognitionRef.current?.stop();
+      setCurrentState('PROCESSING');
       return;
     }
 
-    setIsVoiceActive(true);
+    if (currentState === 'SPEAKING') {
+      stopSpeaking();
+    }
+
+    setCurrentState('LISTENING');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const sessionPromise = connectLiveConcierge({
-        onopen: () => {
-          console.debug('Live session opened');
-          const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-          const source = inputCtx.createMediaStreamSource(stream);
-          const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
-          scriptProcessor.onaudioprocess = (e) => {
-            const inputData = e.inputBuffer.getChannelData(0);
-            const int16 = new Int16Array(inputData.length);
-            for (let i = 0; i < inputData.length; i++) int16[i] = inputData[i] * 32768;
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-            sessionPromise.then(s => s.sendRealtimeInput({ media: { data: base64, mimeType: 'audio/pcm;rate=16000' } }));
-          };
-          source.connect(scriptProcessor);
-          scriptProcessor.connect(inputCtx.destination);
-        },
-        onmessage: async (msg: any) => {
-          // Handle Audio
-          const base64Audio = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-          if (base64Audio) {
-            const binaryString = atob(base64Audio);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-            playAudioBuffer(bytes.buffer);
-          }
-
-          // Handle real-time user transcription
-          if (msg.serverContent?.inputTranscription) {
-            setLiveUserInput(msg.serverContent.inputTranscription.text);
-          }
-
-          // Handle real-time model transcription
-          if (msg.serverContent?.outputTranscription) {
-            setLiveModelOutput(prev => prev + msg.serverContent.outputTranscription.text);
-          }
-
-          // Commit turn to main message list when complete
-          if (msg.serverContent?.turnComplete) {
-            setMessages(prev => [
-              ...prev, 
-              { role: 'user', text: liveUserInput }, 
-              { role: 'model', text: liveModelOutput }
-            ]);
-            setLiveUserInput('');
-            setLiveModelOutput('');
-          }
-        },
-        onclose: () => {
-          setIsVoiceActive(false);
-          setLiveUserInput('');
-          setLiveModelOutput('');
-        },
-        onerror: () => {
-          setIsVoiceActive(false);
-          setLiveUserInput('');
-          setLiveModelOutput('');
-        },
-      });
-      sessionRef.current = await sessionPromise;
+      recognitionRef.current?.start();
     } catch (err) {
-      console.error('Voice failed', err);
-      setIsVoiceActive(false);
+      console.error('Mic start failed', err);
+      setCurrentState('IDLE');
     }
   };
 
   return (
     <div className="fixed bottom-6 right-6 z-[300]">
+      {/* Trigger Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-orange-600 hover:bg-orange-500 text-white p-4 rounded-full shadow-2xl transition-all active:scale-90 flex items-center gap-2 group border border-orange-400/30"
+          className="w-16 h-16 bg-[#FF6B35] hover:bg-[#E05A2A] text-white rounded-full shadow-[0_8px_32px_rgba(255,107,53,0.4)] transition-all active:scale-90 flex items-center justify-center group border border-white/20"
         >
-          <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-20"></div>
-          <MessageCircle size={24} />
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 whitespace-nowrap text-sm font-bold uppercase tracking-widest px-0 group-hover:px-2">
-            AI Concierge
-          </span>
+          <div className="absolute inset-0 bg-[#FF6B35] rounded-full animate-ping opacity-20 scale-125"></div>
+          <MessageCircle size={28} strokeWidth={2.5} className="group-hover:scale-110 transition-transform duration-300" />
         </button>
       )}
 
+      {/* Main Agent Panel */}
       {isOpen && (
-        <div className="w-[350px] sm:w-[400px] h-[550px] bg-zinc-900/95 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col backdrop-blur-xl animate-in fade-in slide-in-from-bottom-10">
-          {/* Header */}
-          <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 rounded-t-3xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white shadow-lg border border-orange-400/20">
-                <Bot size={20} />
+        <div className="w-[350px] sm:w-[420px] h-[650px] bg-zinc-900/98 border border-zinc-800 rounded-[2.5rem] shadow-2xl flex flex-col backdrop-blur-3xl animate-in fade-in slide-in-from-bottom-10 duration-500 overflow-hidden">
+          
+          {/* Header & Avatar Section */}
+          <div className="p-6 border-b border-zinc-800/50 bg-zinc-900/50 flex flex-col items-center">
+            <div className="w-full flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Settings size={18} className="text-zinc-600 hover:text-zinc-400 cursor-pointer" />
+                <History size={18} className="text-zinc-600 hover:text-zinc-400 cursor-pointer" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-white tracking-wide uppercase">AI Concierge</h3>
-                <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Michelin Expert
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setIsTtsEnabled(!isTtsEnabled)} 
-                className={`p-2 rounded-lg transition-colors ${isTtsEnabled ? 'text-orange-500' : 'text-zinc-600'}`}
-              >
-                {isTtsEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              </button>
-              <button onClick={() => setIsOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
-                <X size={20} />
+              <button onClick={() => { stopSpeaking(); setIsOpen(false); }} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                <X size={24} />
               </button>
             </div>
+
+            <div className="relative mb-4">
+              <div className={`w-24 h-24 rounded-full border-4 border-zinc-800 overflow-hidden shadow-2xl transition-all duration-500 ${currentState === 'SPEAKING' ? 'scale-110 border-orange-500' : ''}`}>
+                <img 
+                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=256&h=256" 
+                  alt="Maya AI Agent" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {currentState === 'SPEAKING' && (
+                <div className="absolute inset-0 rounded-full animate-pulse bg-orange-500/10"></div>
+              )}
+              <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full border-4 border-zinc-900 flex items-center justify-center ${currentState === 'IDLE' ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}>
+              </div>
+            </div>
+
+            <h3 className="text-lg font-serif font-bold text-white mb-1">Maya</h3>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+              {currentState === 'IDLE' && 'Ready to help!'}
+              {currentState === 'LISTENING' && 'Listening to you...'}
+              {currentState === 'PROCESSING' && 'Processing your question...'}
+              {currentState === 'SPEAKING' && 'Speaking...'}
+            </span>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          {/* Transcript Section */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-zinc-950/20">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
+              <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2`}>
+                <div className={`max-w-[85%] p-4 rounded-2xl text-sm relative group ${
                   msg.role === 'user' 
-                    ? 'bg-orange-600 text-white rounded-tr-none' 
-                    : 'bg-zinc-800/80 text-zinc-200 border border-zinc-700/50 rounded-tl-none'
+                    ? 'bg-orange-600 text-white rounded-tr-none shadow-lg shadow-orange-950/20' 
+                    : 'bg-zinc-800/80 text-zinc-200 border border-zinc-800 rounded-tl-none'
                 }`}>
-                  <p className="whitespace-pre-line leading-relaxed">{msg.text || (i === messages.length - 1 && isTyping && <Loader2 size={16} className="animate-spin opacity-50" />)}</p>
+                  <p className="leading-relaxed">{msg.text || (i === messages.length - 1 && currentState === 'PROCESSING' && <Loader2 size={16} className="animate-spin opacity-50" />)}</p>
+                  <span className={`text-[8px] mt-2 block opacity-50 font-black uppercase tracking-tighter ${msg.role === 'user' ? 'text-right' : ''}`}>
+                    {msg.timestamp}
+                  </span>
                 </div>
               </div>
             ))}
-            
-            {/* Live User Transcription */}
-            {liveUserInput && (
-              <div className="flex justify-end animate-pulse">
-                <div className="max-w-[85%] p-3 rounded-2xl rounded-tr-none text-sm bg-orange-600/50 text-white/90 italic">
-                  {liveUserInput}
-                </div>
-              </div>
-            )}
-            
-            {/* Live Model Response */}
-            {liveModelOutput && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] p-3 rounded-2xl rounded-tl-none text-sm bg-zinc-800/80 text-zinc-200 border border-zinc-700/50">
-                  {liveModelOutput}
-                </div>
-              </div>
-            )}
-            
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer Input */}
-          <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 rounded-b-3xl">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask me anything..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-3 pl-4 pr-12 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 transition-colors"
-                />
+          {/* Control Section */}
+          <div className="p-8 border-t border-zinc-800/50 bg-zinc-900/50 flex flex-col items-center gap-6">
+            <div className="flex items-center gap-6">
+              {/* Talk Button */}
+              <div className="flex flex-col items-center gap-3">
                 <button 
-                  onClick={handleSend}
-                  disabled={!input.trim() || isTyping}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-800 hover:bg-orange-600 disabled:bg-zinc-900 text-zinc-400 hover:text-white rounded-xl transition-all disabled:opacity-50"
+                  onClick={toggleTalk}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl active:scale-90 border-4 border-zinc-800 ${
+                    currentState === 'LISTENING' ? 'bg-[#E74C3C] scale-110' : 
+                    currentState === 'PROCESSING' ? 'bg-zinc-700' :
+                    currentState === 'SPEAKING' ? 'bg-[#27AE60]' : 'bg-[#FF6B35]'
+                  }`}
                 >
-                  {isTyping ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                  {currentState === 'LISTENING' ? <div className="w-6 h-6 bg-white rounded-sm animate-pulse"></div> : 
+                   currentState === 'PROCESSING' ? <Loader2 className="animate-spin text-white" size={32} /> :
+                   currentState === 'SPEAKING' ? <Volume2 className="text-white animate-bounce" size={32} /> :
+                   <Mic size={32} className="text-white" />}
                 </button>
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  {currentState === 'IDLE' ? 'Click to Talk' : currentState}
+                </span>
               </div>
+
+              {/* Stop Button - Only visible when speaking */}
+              <div className={`flex flex-col items-center gap-3 transition-all duration-300 ${currentState === 'SPEAKING' ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'}`}>
+                <button 
+                  onClick={stopSpeaking}
+                  className="w-14 h-14 bg-[#2C3E50] text-white rounded-full flex items-center justify-center shadow-xl hover:bg-zinc-700 transition-colors border-2 border-zinc-700"
+                >
+                  <Square size={20} fill="white" />
+                </button>
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Stop</span>
+              </div>
+            </div>
+
+            {/* Input Overlay */}
+            <div className="w-full relative flex gap-2">
+              <input 
+                type="text" 
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Type your message..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-3 pl-5 pr-12 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 transition-all placeholder-zinc-700"
+              />
               <button 
-                onClick={toggleVoice}
-                className={`p-3 rounded-2xl transition-all ${isVoiceActive ? 'bg-red-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                onClick={() => handleSend()}
+                disabled={!input.trim() || currentState !== 'IDLE'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-zinc-500 hover:text-orange-500 disabled:opacity-0 transition-all"
               >
-                {isVoiceActive ? <MicOff size={20} /> : <Mic size={20} />}
+                <Send size={20} />
               </button>
             </div>
-            <p className="text-[9px] text-zinc-600 text-center mt-3 uppercase tracking-widest font-black">
-              Bilingv RO/EN • Live Transcription • Powered by MrDelivery AI Agency
+
+            <p className="text-[8px] text-zinc-700 text-center font-black uppercase tracking-[0.4em]">
+              Maya AI Concierge • Instant Menu Pictures
             </p>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes bounce-small {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        .animate-bounce-small {
+          animation: bounce-small 0.5s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

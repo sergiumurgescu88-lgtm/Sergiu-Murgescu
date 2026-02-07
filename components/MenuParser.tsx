@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MenuAnalysisResult } from '../types';
 import { parseMenuText } from '../services/geminiService';
-import { Sparkles, ArrowRight, Loader2, Image as ImageIcon, MapPin, X, FileSpreadsheet, Camera, Upload, Images, Mic, MicOff } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, Image as ImageIcon, MapPin, X, FileSpreadsheet, Camera, Upload, Images, Mic, MicOff, Languages } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface MenuParserProps {
@@ -24,6 +25,7 @@ const MenuParser: React.FC<MenuParserProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [voiceLang, setVoiceLang] = useState<'ro-RO' | 'en-US'>('ro-RO');
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
@@ -32,7 +34,7 @@ const MenuParser: React.FC<MenuParserProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
-  const lastProcessedIndex = useRef<number>(-1);
+  const lastFinalIndex = useRef<number>(-1);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -40,28 +42,32 @@ const MenuParser: React.FC<MenuParserProps> = ({
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true; 
-      recognitionRef.current.lang = 'ro-RO'; 
+      recognitionRef.current.lang = voiceLang; 
       
       recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = '';
+        let newFinalText = '';
         let currentInterim = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcriptPart = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            if (i > lastProcessedIndex.current) {
-              finalTranscript += transcriptPart;
-              lastProcessedIndex.current = i;
+          const result = event.results[i];
+          const transcript = result[0].transcript;
+          
+          if (result.isFinal) {
+            // Only process this index if we haven't processed it as final before
+            if (i > lastFinalIndex.current) {
+              newFinalText += transcript;
+              lastFinalIndex.current = i;
             }
           } else {
-            currentInterim += transcriptPart;
+            currentInterim += transcript;
           }
         }
 
-        if (finalTranscript) {
+        if (newFinalText) {
           setText(prev => {
-            const separator = prev.length > 0 && !prev.endsWith('\n') ? '\n' : '';
-            return prev + separator + finalTranscript.trim();
+            const trimmedPrev = prev.trim();
+            const separator = trimmedPrev.length > 0 ? (trimmedPrev.endsWith('\n') ? '' : '\n') : '';
+            return trimmedPrev + separator + newFinalText.trim();
           });
         }
         setInterimText(currentInterim);
@@ -69,14 +75,24 @@ const MenuParser: React.FC<MenuParserProps> = ({
       
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
-        setIsListening(false);
-        setInterimText('');
+        if (event.error !== 'no-speech') {
+          setIsListening(false);
+          setInterimText('');
+        }
       };
       
       recognitionRef.current.onend = () => {
-        setIsListening(false);
-        setInterimText('');
-        lastProcessedIndex.current = -1;
+        // If we expect it to be listening but it ended, restart it (handles some browser timeouts)
+        if (isListening) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            setIsListening(false);
+          }
+        } else {
+          setInterimText('');
+          lastFinalIndex.current = -1;
+        }
       };
     }
 
@@ -85,24 +101,22 @@ const MenuParser: React.FC<MenuParserProps> = ({
         recognitionRef.current.stop();
       }
     };
-  }, []);
+  }, [isListening, voiceLang]);
 
   const toggleListening = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
       setIsListening(false);
+      recognitionRef.current?.stop();
     } else {
+      setInterimText('');
+      lastFinalIndex.current = -1;
+      setIsListening(true);
       try {
-        setInterimText('');
-        lastProcessedIndex.current = -1;
-        recognitionRef.current?.start();
-        setIsListening(true);
+        recognitionRef.current.lang = voiceLang;
+        recognitionRef.current.start();
       } catch (err) {
         console.error('Failed to start recognition', err);
-        recognitionRef.current?.stop();
-        setTimeout(() => {
-           try { recognitionRef.current?.start(); setIsListening(true); } catch(e) {}
-        }, 200);
+        setIsListening(false);
       }
     }
   };
@@ -192,43 +206,28 @@ const MenuParser: React.FC<MenuParserProps> = ({
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      
-      // Use objects to map headers automatically
       const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
       let newText = "";
       
       jsonData.forEach((row) => {
         const keys = Object.keys(row);
-        
-        // Find the specific headers requested by user: 'Denuire preparat' and 'Descriere'
-        // We look for variations including typos (Denuire vs Denumire)
-        const nameKey = keys.find(k => 
-          k.toLowerCase().includes('denuire') || 
-          k.toLowerCase().includes('denumire') || 
-          k.toLowerCase().includes('preparat')
-        );
-        const descKey = keys.find(k => 
-          k.toLowerCase().includes('descriere')
-        );
+        const nameKey = keys.find(k => k.toLowerCase().includes('denuire') || k.toLowerCase().includes('denumire') || k.toLowerCase().includes('preparat'));
+        const descKey = keys.find(k => k.toLowerCase().includes('descriere'));
 
         if (nameKey && row[nameKey]) {
           const name = String(row[nameKey]).trim();
           const desc = descKey ? String(row[descKey]).trim() : "";
-          
-          // Skip the header itself if it was somehow included in data rows
           if (name && !name.toLowerCase().includes('denuire preparat') && !name.toLowerCase().includes('denumire preparat')) {
             newText += `${name}: ${desc}\n`;
           }
         }
       });
 
-      // Fallback: If no headers matched, try positional index (assuming Col B and C are often index 0/1 or 1/2)
       if (!newText.trim()) {
         const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
         for (let i = 1; i < rawData.length; i++) {
           const row = rawData[i];
           if (row && row.length >= 2) {
-            // Find first two non-empty columns
             const filtered = row.filter(val => val !== undefined && val !== null && val !== "");
             if (filtered.length >= 2) {
               newText += `${filtered[0]}: ${filtered[1]}\n`;
@@ -259,11 +258,28 @@ const MenuParser: React.FC<MenuParserProps> = ({
       <input type="file" ref={bulkInputRef} onChange={handleBulkUpload} accept="image/*" multiple className="hidden" />
 
       <div className="p-4">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/10 text-orange-500 font-sans font-bold text-xs">
-            1
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/10 text-orange-500 font-sans font-bold text-xs">
+              1
+            </div>
+            <h3 className="text-2xl font-serif font-semibold text-white">Upload Menu</h3>
           </div>
-          <h3 className="text-2xl font-serif font-semibold text-white">Upload Menu</h3>
+          
+          <div className="flex items-center bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+             <button 
+                onClick={() => setVoiceLang('ro-RO')} 
+                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${voiceLang === 'ro-RO' ? 'bg-zinc-800 text-orange-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+             >
+               RO
+             </button>
+             <button 
+                onClick={() => setVoiceLang('en-US')} 
+                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${voiceLang === 'en-US' ? 'bg-zinc-800 text-orange-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+             >
+               EN
+             </button>
+          </div>
         </div>
         
         <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -302,7 +318,7 @@ const MenuParser: React.FC<MenuParserProps> = ({
             }`}
           >
             {isListening ? <MicOff size={14} /> : <Mic size={14} className="group-hover/voice:scale-110 transition-transform" />}
-            {isListening ? 'Stop Voice' : 'Use Voice'}
+            {isListening ? 'Stop' : 'Voice Mode'}
           </button>
         </div>
         
@@ -311,21 +327,27 @@ const MenuParser: React.FC<MenuParserProps> = ({
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Paste or speak your menu... e.g. 'Pizza Diavola: Salam picant, mozzarella...'"
-              className="w-full h-48 bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-6 text-zinc-300 placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/30 resize-none transition-all"
+              placeholder={`Paste or speak your menu... e.g. 'Pizza Diavola: Salam picant, mozzarella...' (Lang: ${voiceLang.split('-')[0].toUpperCase()})`}
+              className="w-full h-48 bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-6 text-zinc-300 placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/30 resize-none transition-all font-medium"
             />
             {isListening && interimText && (
               <div className="absolute top-6 left-6 right-16 pointer-events-none">
-                <p className="text-orange-500/50 font-medium italic animate-pulse">
-                  {interimText}
+                <p className="text-orange-500/40 font-semibold italic">
+                  {interimText}...
                 </p>
+              </div>
+            )}
+            {isListening && (
+              <div className="absolute top-2 right-4 flex items-center gap-1">
+                <span className="flex h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+                <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter">Recording</span>
               </div>
             )}
           </div>
           <button 
             onClick={toggleListening}
             className={`absolute right-4 bottom-4 p-3 rounded-full shadow-lg transition-all z-10 ${isListening ? 'bg-red-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
-            title="Dictate menu items (RO/EN)"
+            title={`Dictate menu items (${voiceLang.split('-')[0].toUpperCase()})`}
           >
             {isListening ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
