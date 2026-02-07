@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-/* Added Plus to the import list from lucide-react */
-import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus } from 'lucide-react';
+import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus, CheckCircle } from 'lucide-react';
 import MenuParser from './components/MenuParser';
 import DishCard from './components/DishCard';
 import Snowfall from './components/Snowfall';
@@ -13,7 +12,8 @@ import UserDashboard from './components/UserDashboard';
 import { Dish, PhotoStyle, ImageSize, PhotoQuality, STYLE_TOOLTIPS, User, Currency, ActivityLog } from './types';
 import JSZip from 'jszip';
 
-const MrDeliveryLogo = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
+// Using a unique ID prefix for gradients to prevent collisions when multiple logos are rendered
+const MrDeliveryLogo = ({ size = 24, className = "", idPrefix = "logo" }: { size?: number, className?: string, idPrefix?: string }) => (
   <svg 
     width={size} 
     height={size} 
@@ -23,18 +23,18 @@ const MrDeliveryLogo = ({ size = 24, className = "" }: { size?: number, classNam
     className={`shrink-0 ${className}`}
   >
     <defs>
-      <linearGradient id="topGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id={`${idPrefix}topGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#4FB9E1" />
         <stop offset="100%" stopColor="#2E3192" />
       </linearGradient>
-      <linearGradient id="bottomGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+      <linearGradient id={`${idPrefix}bottomGrad`} x1="100%" y1="100%" x2="0%" y2="0%">
         <stop offset="0%" stopColor="#C1272D" />
         <stop offset="100%" stopColor="#F15A24" />
       </linearGradient>
     </defs>
     <g>
-      <path d="M20 55 C20 30 40 10 70 10 L80 10 L30 65 L20 55Z" fill="url(#topGrad)" />
-      <path d="M80 45 C80 70 60 90 30 90 L20 90 L70 35 L80 45Z" fill="url(#bottomGrad)" />
+      <path d="M20 55 C20 30 40 10 70 10 L80 10 L30 65 L20 55Z" fill={`url(#${idPrefix}topGrad)`} />
+      <path d="M80 45 C80 70 60 90 30 90 L20 90 L70 35 L80 45Z" fill={`url(#${idPrefix}bottomGrad)`} />
       <path d="M45 25 L50 30 L35 45 L30 40 Z M52 22 L55 25 M55 19 L58 22 M58 16 L61 19" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.9"/>
       <path d="M55 70 C60 65 65 60 62 55 C59 50 54 52 49 57 C44 62 42 67 45 72 C48 77 50 75 55 70 Z" fill="white" opacity="0.9"/>
       <path d="M45 72 L35 82" stroke="white" strokeWidth="3" strokeLinecap="round" opacity="0.9" />
@@ -47,15 +47,18 @@ const MOCK_USERS: User[] = [
   { id: '2', email: 'chef.paul@restaurateur.com', fullName: 'Chef Paul Bocuse', credits: 125, role: 'user', joinedAt: '2024-02-15', totalGenerations: 82, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'EUR' },
   { id: '3', email: 'elena.popescu@bistro.ro', fullName: 'Elena Popescu', credits: 42, role: 'user', joinedAt: '2024-03-10', totalGenerations: 15, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'RON' },
   { id: '4', email: 'john.doe@grillhouse.us', fullName: 'John Doe', credits: 5, role: 'user', joinedAt: '2024-04-01', totalGenerations: 124, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'USD' },
-  { id: '5', email: 'michelin.fan@gourmet.fr', fullName: 'Marc Veyrat', credits: 50, role: 'user', joinedAt: '2024-05-20', totalGenerations: 3, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'EUR' },
 ];
 
 const MOCK_LOGS: ActivityLog[] = [
-  { id: 'l1', userId: '2', userName: 'Chef Paul Bocuse', action: 'GENERATE', details: 'Pizza Michelin - Standard (1:1)', creditsAffected: -1, timestamp: new Date().toISOString() },
-  { id: 'l2', userId: '4', userName: 'John Doe', action: 'PURCHASE', details: 'Elite 100 Credits Top-Up', creditsAffected: 100, timestamp: new Date(Date.now() - 3600000).toISOString() },
-  { id: 'l3', userId: '3', userName: 'Elena Popescu', action: 'EDIT', details: 'Magic Retouch - Truffle Pasta', creditsAffected: -1, timestamp: new Date(Date.now() - 7200000).toISOString() },
-  { id: 'l4', userId: '1', userName: 'Infrastructure Admin', action: 'ADJUST', details: 'Manual Credit Injection (Operator 4)', creditsAffected: 50, timestamp: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'l1', userId: '2', userName: 'Chef Paul Bocuse', action: 'PRODUCE', details: 'Pizza Michelin - Standard (1:1)', creditsAffected: -1, timestamp: new Date().toISOString() },
 ];
+
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+  subMessage?: string;
+}
 
 const App: React.FC = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -64,7 +67,8 @@ const App: React.FC = () => {
   const [quality, setQuality] = useState<PhotoQuality>(PhotoQuality.PREMIUM);
   const [isSnowing, setIsSnowing] = useState<boolean>(true);
   const [logoImage, setLogoImage] = useState<string | null>(null);
-  const [locationImage, setLocationImage] = useState<string | null>(null);
+  const [locationImage, setLogoLocation] = useState<string | null>(null); // renamed for internal consistency but keeping logic
+  const [locationImageReal, setLocationImageReal] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [apiKeyReady, setApiKeyReady] = useState<boolean>(false);
   const [checkingKey, setCheckingKey] = useState<boolean>(true);
@@ -78,7 +82,7 @@ const App: React.FC = () => {
   const [showPricing, setShowPricing] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showUserDashboard, setShowUserDashboard] = useState(false);
-  const [lowCreditAlert, setLowCreditAlert] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Global Infrastructure Tracking
   const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
@@ -97,6 +101,14 @@ const App: React.FC = () => {
       setApiKeyReady(true);
     }
     setCheckingKey(false);
+  };
+
+  const addToast = (type: 'success' | 'error' | 'info', message: string, subMessage?: string) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, type, message, subMessage }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
   };
 
   const handleSelectKey = async () => {
@@ -127,33 +139,32 @@ const App: React.FC = () => {
     setStep(2);
   };
 
-  const updateDish = (id: string, updates: Partial<Dish>) => {
-    const dish = dishes.find(d => d.id === id);
-    if (updates.imageUrl && !dish?.imageUrl && user) {
-      if (user.credits <= 0) {
-        setLowCreditAlert("CRITICAL: Production halted. Studio credits exhausted.");
-        setShowPricing(true);
-        return;
-      }
-      
-      const newCredits = user.credits - 1;
-      const updatedUser = { ...user, credits: newCredits, totalGenerations: user.totalGenerations + 1 };
-      setUser(updatedUser);
-      
-      // Update infrastructure DB
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
-      setActivityLogs(prev => [{
-        id: Math.random().toString(36).substr(2, 9),
-        userId: user.id,
-        userName: user.fullName,
-        action: 'PRODUCE',
-        details: `${dish?.name} (${style})`,
-        creditsAffected: -1,
-        timestamp: new Date().toISOString()
-      }, ...prev]);
+  const handleChargeCredit = (action: string, details: string) => {
+    if (!user) return;
+    
+    const newCredits = user.credits - 1;
+    const updatedUser = { 
+      ...user, 
+      credits: newCredits, 
+      totalGenerations: user.totalGenerations + 1 
+    };
+    
+    setUser(updatedUser);
+    setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+    setActivityLogs(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      userId: user.id,
+      userName: user.fullName,
+      action: action,
+      details: details,
+      creditsAffected: -1,
+      timestamp: new Date().toISOString()
+    }, ...prev]);
 
-      if (newCredits <= 10) setLowCreditAlert(`SYSTEM WARNING: credits low (${newCredits} left).`);
-    }
+    addToast('success', 'Production Successful!', `1 credit used. ${newCredits} remaining.`);
+  };
+
+  const updateDish = (id: string, updates: Partial<Dish>) => {
     setDishes((prev) => prev.map((dish) => (dish.id === id ? { ...dish, ...updates } : dish)));
   };
 
@@ -163,7 +174,7 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
-    setDishes([]); setStep(1); setLogoImage(null); setLocationImage(null); setShowResetConfirmation(false);
+    setDishes([]); setStep(1); setLogoImage(null); setLocationImageReal(null); setShowResetConfirmation(false);
     setGlobalError(null);
   };
 
@@ -217,7 +228,7 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString()
       }, ...prev]);
       setShowPricing(false);
-      setLowCreditAlert(null);
+      addToast('success', 'Top-up confirmed!', `${credits} credits added to your account.`);
     }
   };
 
@@ -243,13 +254,6 @@ const App: React.FC = () => {
     }, ...prev]);
   };
 
-  const handleUserUpdate = (updates: Partial<User>) => {
-    if (!user) return;
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
-  };
-
   const getCreditColor = (credits: number) => {
     if (credits >= 20) return 'text-green-500';
     if (credits >= 5) return 'text-orange-500';
@@ -263,7 +267,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-[#050505] text-zinc-200 flex flex-col items-center justify-center p-4 text-center">
          <div className="w-32 h-32 bg-white/5 rounded-[3rem] flex items-center justify-center shadow-[0_0_80px_rgba(255,75,75,0.1)] border border-white/5 mb-10 overflow-hidden backdrop-blur-md relative group">
             <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <MrDeliveryLogo size={100} />
+            <MrDeliveryLogo size={100} idPrefix="lock" />
          </div>
          <h1 className="text-6xl font-serif font-bold text-white mb-4 tracking-tight">Studio<span className="text-orange-500">Access</span></h1>
          <p className="text-[11px] text-zinc-500 mb-10 font-black uppercase tracking-[0.4em]">Proprietary Michelin Engine • mrdelivery.ro</p>
@@ -309,45 +313,45 @@ const App: React.FC = () => {
           onClose={() => setShowUserDashboard(false)} 
           onLogout={() => { setUser(null); setShowUserDashboard(false); }}
           onOpenPricing={() => { setShowPricing(true); setShowUserDashboard(false); }}
-          onUpdateUser={handleUserUpdate}
+          onUpdateUser={(upd) => {
+            const updated = {...user, ...upd};
+            setUser(updated);
+            setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
+          }}
         />
       )}
       
-      {showResetConfirmation && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] max-w-md w-full p-10 shadow-2xl shadow-black/80">
-            <h3 className="text-2xl font-serif font-bold text-white mb-4">Initialize New Session?</h3>
-            <p className="text-sm text-zinc-400 mb-8 leading-relaxed">Current production data will be purged from active memory. Ensure all assets are exported.</p>
-            <div className="flex flex-col gap-3">
-              <button onClick={resetApp} className="w-full py-4 bg-orange-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-orange-500 transition-all">Clear Memory</button>
-              <button onClick={() => setShowResetConfirmation(false)} className="w-full py-4 bg-zinc-800 text-zinc-400 font-black uppercase tracking-widest text-xs rounded-2xl hover:text-white transition-all">Abort Reset</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {lowCreditAlert && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[1000] animate-in slide-in-from-top-10 duration-500">
-          <div className="bg-zinc-900 border border-orange-500/30 rounded-3xl px-8 py-4 flex items-center gap-6 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl ring-1 ring-orange-500/20">
-            <AlertTriangle className="text-orange-500 animate-pulse" size={24} />
+      {/* Toast System */}
+      <div className="fixed top-24 right-6 z-[1100] flex flex-col gap-3 pointer-events-none">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`p-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-3xl animate-in slide-in-from-right-10 pointer-events-auto max-w-sm ${
+            toast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+            toast.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+            'bg-zinc-900/80 border-zinc-700 text-zinc-300'
+          }`}>
+            {toast.type === 'success' ? <CheckCircle size={20} /> : toast.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-0.5">Critical Priority</span>
-              <span className="text-xs font-bold text-white">{lowCreditAlert}</span>
+              <span className="text-xs font-black uppercase tracking-widest">{toast.message}</span>
+              {toast.subMessage && <span className="text-[10px] opacity-70 font-medium">{toast.subMessage}</span>}
             </div>
-            <button onClick={() => setShowPricing(true)} className="px-5 py-2.5 bg-white text-zinc-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-zinc-200 transition-all shadow-xl active:scale-95">Top Up</button>
-            <button onClick={() => setLowCreditAlert(null)} className="p-2 text-zinc-500 hover:text-white transition-colors"><X size={18} /></button>
+            <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="ml-auto p-1 hover:bg-white/10 rounded-lg"><X size={14} /></button>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
       <header className="sticky top-0 z-[150] bg-zinc-950/80 border-b border-white/5 backdrop-blur-3xl shadow-2xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-1 sm:gap-6">
           <div className="flex items-center gap-2 sm:gap-5 cursor-pointer shrink-0" onClick={requestReset}>
             <div className="bg-zinc-900 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-zinc-800 flex items-center justify-center shrink-0 shadow-inner ring-1 ring-white/5">
-              <MrDeliveryLogo size={24} className="sm:w-8 sm:h-8" />
+              <MrDeliveryLogo size={24} className="sm:w-8 sm:h-8" idPrefix="header" />
             </div>
             <div className="flex flex-col leading-tight">
-              <h1 className="text-sm sm:text-xl font-serif font-bold text-white tracking-tighter">InstantPhoto<span className="text-orange-500 italic">.ai</span></h1>
+              {/* REFINED BRANDING HEADER */}
+              <h1 className="text-lg sm:text-2xl font-serif font-bold tracking-tight flex items-baseline">
+                <span className="text-white">MrDelivery</span>
+                <span className="text-orange-500 italic mx-0.5">.AI</span>
+                <span className="text-white ml-1">Studio</span>
+              </h1>
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-[6px] sm:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-600 hidden xs:inline">Production Mode</span>
                 <div className="flex items-center gap-1 px-1 sm:px-1.5 py-0.5 bg-sky-500/10 rounded-md border border-sky-500/20 text-sky-400 group/snow" onClick={(e) => { e.stopPropagation(); setIsSnowing(!isSnowing); }}>
@@ -372,11 +376,12 @@ const App: React.FC = () => {
                  )}
                  <button 
                    onClick={() => setShowPricing(true)}
+                   title="Credits available for image generation"
                    className="flex items-center gap-1.5 sm:gap-4 px-2.5 sm:px-5 py-2 sm:py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl sm:rounded-2xl transition-all group shadow-xl ring-1 ring-white/5"
                  >
                    <Coins size={14} className={`${getCreditColor(user.credits)} sm:w-[18px] sm:h-[18px]`} />
                    <div className="flex flex-col items-start leading-none">
-                     <span className={`text-xs sm:text-sm font-black ${getCreditColor(user.credits)}`}>{user.credits}</span>
+                     <span className={`text-xs sm:text-sm font-black ${getCreditColor(user.credits)} transition-colors`}>{user.credits}</span>
                      <span className="text-[6px] sm:text-[8px] font-black text-zinc-600 uppercase tracking-tighter hidden sm:inline">Credits</span>
                    </div>
                    <div className="ml-1 p-0.5 sm:p-1 bg-orange-600 text-white rounded-md sm:rounded-lg group-hover:scale-110 transition-all shadow-xl shadow-orange-950/40 hidden xs:flex">
@@ -386,7 +391,7 @@ const App: React.FC = () => {
                  <div className="flex items-center gap-2 sm:gap-4 pl-1.5 sm:pl-6 border-l border-zinc-800">
                    <div className="relative group/avatar cursor-pointer shrink-0" onClick={() => setShowUserDashboard(true)}>
                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-[1rem] bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700 overflow-hidden shadow-2xl ring-1 ring-white/10 group-hover/avatar:ring-orange-500/40 transition-all">
-                       {user.profilePhoto ? <img src={user.profilePhoto} alt="" /> : <UserIcon size={16} className="sm:w-5 sm:h-5" />}
+                       {user.profilePhoto ? <img src={user.profilePhoto} alt="" className="w-full h-full object-cover" /> : <UserIcon size={16} className="sm:w-5 sm:h-5" />}
                      </div>
                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-zinc-950 sm:w-2.5 sm:h-2.5 sm:border-2"></div>
                    </div>
@@ -417,10 +422,10 @@ const App: React.FC = () => {
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif font-bold text-white mb-4 leading-tight tracking-tight text-balance">Instant Menu Pictures</h1>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-medium text-zinc-600 mb-10 italic">Michelin Cinematic Engine</h2>
               <p className="text-sm sm:text-base text-zinc-500 max-w-2xl mx-auto leading-relaxed mb-12 font-medium">
-                Unified AI production for restaurant visionaries. Transform text or raw reference captures into high-prestige culinary assets without professional photographic logistics.
+                Turn any text or photo into a stunning menu image, customized with your logo and restaurant decor. Edit dishes to perfection, keep authenticity, and create premium visuals for websites, delivery apps, and social media—without costly professional photographers.
               </p>
             </div>
-            <MenuParser onDishesParsed={handleDishesParsed} logoImage={logoImage} locationImage={locationImage} onLogoChange={setLogoImage} onLocationChange={setLocationImage} />
+            <MenuParser onDishesParsed={handleDishesParsed} logoImage={logoImage} locationImage={locationImageReal} onLogoChange={setLogoImage} onLocationChange={setLocationImageReal} />
           </div>
         )}
 
@@ -532,12 +537,16 @@ const App: React.FC = () => {
                 <DishCard 
                   key={dish.id} 
                   dish={dish} 
+                  userCredits={user?.credits || 0}
                   currentStyle={style} 
                   currentSize={size} 
                   currentQuality={quality} 
                   logoImage={logoImage} 
-                  locationImage={locationImage} 
+                  locationImage={locationImageReal} 
                   onUpdate={updateDish}
+                  onCharge={handleChargeCredit}
+                  onOpenPricing={() => setShowPricing(true)}
+                  addToast={addToast}
                   isGenerationLimitReached={isGenerationLimitReached}
                   onKeyError={() => setGlobalError("quota_exceeded")}
                 />
@@ -549,14 +558,17 @@ const App: React.FC = () => {
       
       <ChatBot />
 
-      <footer className="py-24 text-center border-t border-white/5">
-        <div className="flex items-center justify-center gap-6 mb-10">
+      <footer className="py-24 text-center border-t border-white/5 bg-zinc-950/40 relative z-10">
+        <div className="flex items-center justify-center gap-6 mb-8">
            <a href="https://mrdelivery.ro" target="_blank" className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 hover:text-orange-500 transition-all shadow-xl hover:scale-110 active:scale-90">
               <Globe2 size={24} />
            </a>
         </div>
-        <p className="text-zinc-700 text-[10px] font-black tracking-[0.6em] uppercase px-6">
-          &copy; {new Date().getFullYear()} MrDelivery AI Agency • Proprietary Infrastructure • mrdelivery.ro
+        <p className="text-zinc-400 text-sm font-medium tracking-wide px-6">
+          &copy; 2026 MrDelivery AI Studio • Proprietary Infrastructure of MrDelivery AI Agency
+        </p>
+        <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em] mt-3">
+          mrdelivery.ro
         </p>
       </footer>
 
