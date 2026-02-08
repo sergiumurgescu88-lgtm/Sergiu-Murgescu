@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Dish, ImageSize, PhotoStyle, PhotoQuality, AspectRatio } from '../types';
 import { 
@@ -7,7 +8,7 @@ import {
   Info, Users, Search, ClipboardList, Utensils, Sparkles, Wand2, Eye, LayoutTemplate, Globe, Briefcase, Coffee, Coins,
   GlassWater, Sun, Building2, Home, Waves, Heart, Zap, BookOpen, Circle, DoorOpen, ShoppingBag, Lightbulb
 } from 'lucide-react';
-import { generateDishImage, editDishImage, analyzeDishNutrition } from '../services/geminiService';
+import { generateDishImage, editDishImage, analyzeDishNutrition, PREP_TEAM_PROMPT, DETECTION_SQUAD_PROMPT } from '../services/geminiService';
 
 interface DishCardProps {
   dish: Dish;
@@ -144,7 +145,7 @@ const MAGIC_EXAMPLES = {
       id: "logo_leather",
       title: "Leather Menu",
       description: "Embossed logo on rich chocolate cover",
-      thumbnail: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&q=80&w=600",
+      thumbnail: "https://images.unsplash.com/photo-1551024506-0bcc628d307?auto=format&fit=crop&q=80&w=600",
       prompt: "Premium leather-bound menu cover, logo embossed in gold foil, textured grain visible, product photography on dark wooden surface, dramatic side lighting, luxury restaurant aesthetic",
       icon: BookOpen,
       aspect: "1:1"
@@ -240,7 +241,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
   const confirmPaidAction = (label: string, callback: () => void, type: string) => {
     if (userCredits < 1) {
       setPendingAction(null);
-      addToast('error', 'Insufficient Credits', '1 credit required.');
+      // Prompt 3: Specific insufficient funds message
+      addToast('error', 'Insufficient Credits', `You need 1 credit to edit. Current balance: ${userCredits} credits.`);
       onOpenPricing();
       return;
     }
@@ -276,7 +278,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
         if (onKeyError) onKeyError();
       }
       onUpdate(dish.id, { isLoading: false, error: errorMsg });
-      addToast('error', 'Generation Failed', 'No credits charged.');
+      // Prompt 3: Specific technical error message
+      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
     }
   };
 
@@ -294,7 +297,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
       if (!customPrompt) setEditPrompt('');
     } catch (err: any) {
       onUpdate(dish.id, { isEditing: false, error: "Edit failed." });
-      addToast('error', 'Edit Failed', 'No credits charged.');
+      // Prompt 3: Specific technical error message
+      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
     }
   };
 
@@ -309,7 +313,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
       setShowNutrition(true);
     } catch (err: any) {
       onUpdate(dish.id, { isAnalyzing: false });
-      addToast('error', 'Analysis Failed', 'No credits charged.');
+      // Prompt 3: Specific technical error message
+      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
     }
   };
 
@@ -453,23 +458,23 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
               <ActionButton icon={Wand2} label="Magic Examples" isMagic={true} onClick={() => setIsMagicModalOpen(true)} disabled={dish.isLoading} />
             </div>
 
-            {/* Lower Tier Production Specialists */}
+            {/* Specialist Production Protocols */}
             {dish.imageUrl && (
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <button 
-                  onClick={() => confirmPaidAction('Deploy Prep Team', () => executeEdit("[PREP TEAM] Optimize plating. Fix shadows."), 'edit')}
+                  onClick={() => confirmPaidAction('Deploy Prep Team', () => executeEdit(PREP_TEAM_PROMPT), 'edit')}
                   disabled={dish.isLoading || dish.isEditing} 
-                  className="flex flex-col items-center justify-center gap-1.5 p-3 bg-zinc-900/60 hover:bg-orange-600/10 border border-zinc-800 hover:border-orange-500/40 rounded-xl transition-all group/prep"
+                  className="flex flex-col items-center justify-center gap-1.5 p-3 bg-zinc-900/60 hover:bg-orange-600/20 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition-all group/prep shadow-sm"
                 >
-                  <Users size={18} className="text-zinc-500 group-hover/prep:text-orange-500" />
+                  <Users size={18} className="text-zinc-500 group-hover/prep:text-orange-500 group-hover/prep:scale-110 transition-all" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Prep Team</span>
                 </button>
                 <button 
-                  onClick={() => confirmPaidAction('Deploy Detection Squad', () => executeEdit("[DETECTION SQUAD] Correct artifacts. Zoom for detail."), 'edit')}
+                  onClick={() => confirmPaidAction('Deploy Detection Squad', () => executeEdit(DETECTION_SQUAD_PROMPT), 'edit')}
                   disabled={dish.isLoading || dish.isEditing} 
-                  className="flex flex-col items-center justify-center gap-1.5 p-3 bg-zinc-900/60 hover:bg-sky-600/10 border border-zinc-800 hover:border-sky-500/40 rounded-xl transition-all group/det"
+                  className="flex flex-col items-center justify-center gap-1.5 p-3 bg-zinc-900/60 hover:bg-sky-600/20 border border-zinc-800 hover:border-sky-500/50 rounded-xl transition-all group/det shadow-sm"
                 >
-                  <Search size={18} className="text-zinc-500 group-hover/det:text-sky-500" />
+                  <Search size={18} className="text-zinc-500 group-hover/det:text-sky-500 group-hover/det:scale-110 transition-all" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Detection Squad</span>
                 </button>
               </div>

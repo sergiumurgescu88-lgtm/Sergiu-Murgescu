@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus, CheckCircle } from 'lucide-react';
+import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus, CheckCircle, HelpCircle, Mail } from 'lucide-react';
 import MenuParser from './components/MenuParser';
 import DishCard from './components/DishCard';
 import Snowfall from './components/Snowfall';
@@ -9,10 +9,10 @@ import Auth from './components/Auth';
 import Pricing from './components/Pricing';
 import AdminPanel from './components/AdminPanel';
 import UserDashboard from './components/UserDashboard';
+import SupportPolicyModal from './components/SupportPolicyModal';
 import { Dish, PhotoStyle, ImageSize, PhotoQuality, STYLE_TOOLTIPS, User, Currency, ActivityLog } from './types';
 import JSZip from 'jszip';
 
-// Using a unique ID prefix for gradients to prevent collisions when multiple logos are rendered
 const MrDeliveryLogo = ({ size = 24, className = "", idPrefix = "logo" }: { size?: number, className?: string, idPrefix?: string }) => (
   <svg 
     width={size} 
@@ -43,10 +43,25 @@ const MrDeliveryLogo = ({ size = 24, className = "", idPrefix = "logo" }: { size
 );
 
 const MOCK_USERS: User[] = [
-  { id: '1', email: 'admin@mrdelivery.ro', fullName: 'Infrastructure Admin', credits: 9999, role: 'admin', joinedAt: '2023-01-01', totalGenerations: 1250, isLoggedIn: true, isEmailVerified: true, preferredCurrency: 'EUR' },
-  { id: '2', email: 'chef.paul@restaurateur.com', fullName: 'Chef Paul Bocuse', credits: 125, role: 'user', joinedAt: '2024-02-15', totalGenerations: 82, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'EUR' },
-  { id: '3', email: 'elena.popescu@bistro.ro', fullName: 'Elena Popescu', credits: 42, role: 'user', joinedAt: '2024-03-10', totalGenerations: 15, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'RON' },
-  { id: '4', email: 'john.doe@grillhouse.us', fullName: 'John Doe', credits: 5, role: 'user', joinedAt: '2024-04-01', totalGenerations: 124, isLoggedIn: false, isEmailVerified: true, preferredCurrency: 'USD' },
+  { 
+    id: '1', 
+    googleId: 'google_admin_123',
+    email: 'admin@mrdelivery.ro', 
+    fullName: 'Infrastructure Admin', 
+    credits: 9999, 
+    freeCredits: 0,
+    purchasedCredits: 9999,
+    accountTier: 'PREMIUM',
+    accountStatus: 'ACTIVE',
+    dailyUsage: 0,
+    lastUsageDate: new Date().toISOString(),
+    role: 'admin', 
+    joinedAt: '2023-01-01', 
+    totalGenerations: 1250, 
+    isLoggedIn: true, 
+    isEmailVerified: true, 
+    preferredCurrency: 'EUR' 
+  },
 ];
 
 const MOCK_LOGS: ActivityLog[] = [
@@ -67,7 +82,6 @@ const App: React.FC = () => {
   const [quality, setQuality] = useState<PhotoQuality>(PhotoQuality.PREMIUM);
   const [isSnowing, setIsSnowing] = useState<boolean>(true);
   const [logoImage, setLogoImage] = useState<string | null>(null);
-  const [locationImage, setLogoLocation] = useState<string | null>(null); // renamed for internal consistency but keeping logic
   const [locationImageReal, setLocationImageReal] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [apiKeyReady, setApiKeyReady] = useState<boolean>(false);
@@ -82,11 +96,99 @@ const App: React.FC = () => {
   const [showPricing, setShowPricing] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showUserDashboard, setShowUserDashboard] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [hasShownExpiryWarning, setHasShownExpiryWarning] = useState(false);
 
   // Global Infrastructure Tracking
   const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(MOCK_LOGS);
+
+  // Persistence Logic
+  useEffect(() => {
+    const savedUser = localStorage.getItem('mrdelivery_session');
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser.freeCredits === undefined) {
+          parsedUser.freeCredits = parsedUser.credits;
+          parsedUser.purchasedCredits = 0;
+          parsedUser.accountTier = 'FREE';
+          parsedUser.dailyUsage = 0;
+          parsedUser.lastUsageDate = new Date().toISOString();
+        }
+        // Migration for existing sessions without accountStatus
+        if (!parsedUser.accountStatus) {
+            parsedUser.accountStatus = 'ACTIVE';
+            parsedUser.isEmailVerified = true;
+        }
+        setUser(parsedUser);
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      }
+    }
+
+    const savedUsers = localStorage.getItem('mrdelivery_db_users');
+    if (savedUsers) {
+      try {
+        setAllUsers(JSON.parse(savedUsers));
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('mrdelivery_session', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('mrdelivery_session');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem('mrdelivery_db_users', JSON.stringify(allUsers));
+  }, [allUsers]);
+
+  // DAILY LIMIT RESET & EXPIRATION LOGIC
+  useEffect(() => {
+    if (!user) return;
+    
+    let updated = false;
+    let newUser = { ...user };
+    const now = new Date();
+    
+    // 1. Daily Limit Reset (24h Window)
+    // If more than 24h have passed since the recorded start of the window, reset usage.
+    const lastUsage = new Date(user.lastUsageDate);
+    if (now.getTime() - lastUsage.getTime() > 24 * 60 * 60 * 1000) {
+      if (newUser.dailyUsage > 0) {
+        newUser.dailyUsage = 0;
+        // We don't reset lastUsageDate here. It gets reset on the NEXT edit.
+        updated = true;
+      }
+    }
+
+    // 2. Free Credit Expiration (30 Days)
+    if (user.freeCredits > 0) {
+      const joinDate = new Date(user.joinedAt);
+      const daysSinceJoin = (now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceJoin > 30) {
+        newUser.freeCredits = 0;
+        newUser.credits = newUser.purchasedCredits;
+        updated = true;
+        addToast('error', 'Free Credits Expired', 'Free credits expired. Upgrade to Premium!');
+      } else if (daysSinceJoin > 23 && !hasShownExpiryWarning) {
+        // 3. Expiration Warning (7 Days before)
+        addToast('info', 'Expiration Warning', 'Your free credits expire in 7 days!');
+        setHasShownExpiryWarning(true);
+      }
+    }
+
+    if (updated) {
+      setUser(newUser);
+      setAllUsers(prev => prev.map(u => u.id === user.id ? newUser : u));
+    }
+  }, [user, hasShownExpiryWarning]);
 
   const activeGenerationsCount = dishes.filter(d => d.isLoading || d.isEditing).length;
   const isGenerationLimitReached = activeGenerationsCount >= 3;
@@ -139,14 +241,77 @@ const App: React.FC = () => {
     setStep(2);
   };
 
+  // CORE CREDIT LOGIC
   const handleChargeCredit = (action: string, details: string) => {
     if (!user) return;
+
+    // ACCOUNT STATUS CHECK
+    if (user.accountStatus !== 'ACTIVE') {
+      addToast('error', 'Action Blocked', 'Please confirm your email to start editing.');
+      setShowAuth(true); // Open auth modal to show verification/status
+      throw new Error("Account not active");
+    }
+
+    const now = new Date();
+    const lastUsage = new Date(user.lastUsageDate);
     
-    const newCredits = user.credits - 1;
-    const updatedUser = { 
+    // Check if we need to reset the daily counter before processing
+    let currentDailyUsage = user.dailyUsage;
+    let currentLastUsageDate = user.lastUsageDate;
+
+    if (now.getTime() - lastUsage.getTime() > 24 * 60 * 60 * 1000) {
+      currentDailyUsage = 0;
+    }
+
+    // Check Daily Limits
+    const dailyLimit = user.accountTier === 'PREMIUM' ? 100 : 10;
+    
+    if (currentDailyUsage >= dailyLimit) {
+      const resetTime = new Date(lastUsage.getTime() + 24*60*60*1000);
+      const diffMs = resetTime.getTime() - now.getTime();
+      const hoursLeft = Math.ceil(diffMs / (1000 * 60 * 60));
+      
+      const msg = user.accountTier === 'FREE' 
+        ? `10 edits used. Upgrade for 100/day!` 
+        : `100 edits used. Resets in ${hoursLeft}h.`;
+        
+      addToast('error', 'Daily Limit Reached', msg);
+      throw new Error("Daily limit reached");
+    }
+
+    // Determine Deduction Source (FIFO / Priority)
+    let newFree = user.freeCredits;
+    let newPurchased = user.purchasedCredits;
+    let deductedFrom = '';
+
+    if (newFree > 0) {
+      newFree--;
+      deductedFrom = 'Free Balance';
+    } else if (newPurchased > 0) {
+      newPurchased--;
+      deductedFrom = 'Purchased Balance';
+    } else {
+      addToast('error', 'Out of credits!', 'Purchase a package to continue.');
+      throw new Error("Insufficient credits");
+    }
+
+    // Update Tier if out of purchased credits
+    const newTier = newPurchased > 0 ? 'PREMIUM' : 'FREE';
+    
+    // Start 24h window if this is the first edit (or first after reset)
+    if (currentDailyUsage === 0) {
+        currentLastUsageDate = now.toISOString();
+    }
+
+    const updatedUser: User = { 
       ...user, 
-      credits: newCredits, 
-      totalGenerations: user.totalGenerations + 1 
+      freeCredits: newFree,
+      purchasedCredits: newPurchased,
+      credits: newFree + newPurchased,
+      totalGenerations: user.totalGenerations + 1,
+      dailyUsage: currentDailyUsage + 1,
+      lastUsageDate: currentLastUsageDate,
+      accountTier: newTier
     };
     
     setUser(updatedUser);
@@ -156,12 +321,19 @@ const App: React.FC = () => {
       userId: user.id,
       userName: user.fullName,
       action: action,
-      details: details,
+      details: `${details} (${deductedFrom})`,
       creditsAffected: -1,
       timestamp: new Date().toISOString()
     }, ...prev]);
 
-    addToast('success', 'Production Successful!', `1 credit used. ${newCredits} remaining.`);
+    // Notifications
+    if (newFree === 0 && newPurchased > 0 && user.freeCredits > 0) {
+      addToast('info', 'Free Credits Depleted', 'Now using Purchased Credits.');
+    } else if (newFree + newPurchased === 5) {
+      addToast('info', 'Low Balance Warning', 'Only 5 credits remaining.');
+    } else {
+      addToast('success', 'Production Successful!', `1 credit used. ${newFree + newPurchased} remaining.`);
+    }
   };
 
   const updateDish = (id: string, updates: Partial<Dish>) => {
@@ -207,15 +379,42 @@ const App: React.FC = () => {
     setUser(newUser);
     setAllUsers(prev => {
       const existing = prev.find(u => u.email === newUser.email);
-      if (existing) return prev.map(u => u.email === newUser.email ? { ...u, isLoggedIn: true } : u);
+      if (existing) return prev.map(u => u.email === newUser.email ? { ...u, isLoggedIn: true, accountStatus: newUser.accountStatus, freeCredits: newUser.freeCredits, credits: newUser.credits } : u);
       return [...prev, { ...newUser, joinedAt: new Date().toISOString(), totalGenerations: 0 }];
     });
+    
+    // Only close Auth if user is active (fully verified) or we want to allow "limited preview"
+    // For smoother UX, we close Auth but show banner if pending.
     setShowAuth(false);
+    
+    // Welcome Notification
+    if (newUser.accountStatus === 'ACTIVE' && newUser.totalGenerations === 0 && newUser.freeCredits === 50) {
+      addToast('success', 'Welcome! 50 free credits granted.', 'Expires in 30 days.');
+    } else if (newUser.accountStatus === 'PENDING_VERIFICATION') {
+      addToast('info', 'Verification Required', 'Please confirm your email to start editing.');
+    } else {
+      addToast('success', `Session established for ${newUser.fullName}`);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setShowUserDashboard(false);
+    addToast('info', 'Securely logged out');
   };
 
   const handlePurchase = (credits: number) => {
     if (user) {
-      const updatedUser = { ...user, credits: user.credits + credits };
+      if (user.accountStatus !== 'ACTIVE') {
+        addToast('error', 'Purchase Blocked', 'Please verify email before purchasing.');
+        return;
+      }
+      const updatedUser = { 
+        ...user, 
+        purchasedCredits: user.purchasedCredits + credits,
+        credits: user.freeCredits + user.purchasedCredits + credits,
+        accountTier: 'PREMIUM' as const
+      };
       setUser(updatedUser);
       setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
       setActivityLogs(prev => [{
@@ -228,7 +427,9 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString()
       }, ...prev]);
       setShowPricing(false);
-      addToast('success', 'Top-up confirmed!', `${credits} credits added to your account.`);
+      
+      // Exact notification string from Prompt 2
+      addToast('success', `Success! ${credits} credits added.`, "You're now Premium!");
     }
   };
 
@@ -236,7 +437,13 @@ const App: React.FC = () => {
     const targetUser = allUsers.find(u => u.id === userId);
     setAllUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        const updated = { ...u, credits: Math.max(0, u.credits + amount) };
+        // Admin updates affect purchased credits mainly
+        const newPurchased = Math.max(0, u.purchasedCredits + amount);
+        const updated = { 
+          ...u, 
+          purchasedCredits: newPurchased,
+          credits: u.freeCredits + newPurchased
+        };
         if (user && user.id === userId) setUser(updated);
         return updated;
       }
@@ -295,8 +502,10 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-200 selection:bg-orange-500/30 overflow-x-hidden relative">
       {isSnowing && <Snowfall />}
-      {showAuth && <Auth onAuthComplete={handleAuthComplete} onClose={() => setShowAuth(false)} />}
+      {showAuth && <Auth onAuthComplete={handleAuthComplete} onClose={() => setShowAuth(false)} allUsers={allUsers} />}
       {showPricing && <Pricing onPurchase={handlePurchase} onClose={() => setShowPricing(false)} currentCurrency={user?.preferredCurrency || 'EUR'} onCurrencyChange={(c) => user && setUser({...user, preferredCurrency: c})} />}
+      <SupportPolicyModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} user={user} />
+      
       {showAdmin && user?.role === 'admin' && (
         <AdminPanel 
           users={allUsers} 
@@ -311,13 +520,14 @@ const App: React.FC = () => {
           user={user} 
           logs={activityLogs} 
           onClose={() => setShowUserDashboard(false)} 
-          onLogout={() => { setUser(null); setShowUserDashboard(false); }}
+          onLogout={handleLogout}
           onOpenPricing={() => { setShowPricing(true); setShowUserDashboard(false); }}
           onUpdateUser={(upd) => {
             const updated = {...user, ...upd};
             setUser(updated);
             setAllUsers(prev => prev.map(u => u.id === user.id ? updated : u));
           }}
+          onOpenSupport={() => { setShowSupportModal(true); setShowUserDashboard(false); }}
         />
       )}
       
@@ -346,7 +556,6 @@ const App: React.FC = () => {
               <MrDeliveryLogo size={24} className="sm:w-8 sm:h-8" idPrefix="header" />
             </div>
             <div className="flex flex-col leading-tight">
-              {/* REFINED BRANDING HEADER */}
               <h1 className="text-lg sm:text-2xl font-serif font-bold tracking-tight flex items-baseline">
                 <span className="text-white">MrDelivery</span>
                 <span className="text-orange-500 italic mx-0.5">.AI</span>
@@ -382,7 +591,9 @@ const App: React.FC = () => {
                    <Coins size={14} className={`${getCreditColor(user.credits)} sm:w-[18px] sm:h-[18px]`} />
                    <div className="flex flex-col items-start leading-none">
                      <span className={`text-xs sm:text-sm font-black ${getCreditColor(user.credits)} transition-colors`}>{user.credits}</span>
-                     <span className="text-[6px] sm:text-[8px] font-black text-zinc-600 uppercase tracking-tighter hidden sm:inline">Credits</span>
+                     <span className="text-[6px] sm:text-[8px] font-black text-zinc-600 uppercase tracking-tighter hidden sm:inline">
+                       {user.accountTier === 'FREE' ? 'Free Credits' : 'Credits'}
+                     </span>
                    </div>
                    <div className="ml-1 p-0.5 sm:p-1 bg-orange-600 text-white rounded-md sm:rounded-lg group-hover:scale-110 transition-all shadow-xl shadow-orange-950/40 hidden xs:flex">
                      <Plus size={8} className="sm:w-[10px] sm:h-[10px]" />
@@ -393,9 +604,9 @@ const App: React.FC = () => {
                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-[1rem] bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700 overflow-hidden shadow-2xl ring-1 ring-white/10 group-hover/avatar:ring-orange-500/40 transition-all">
                        {user.profilePhoto ? <img src={user.profilePhoto} alt="" className="w-full h-full object-cover" /> : <UserIcon size={16} className="sm:w-5 sm:h-5" />}
                      </div>
-                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-zinc-950 sm:w-2.5 sm:h-2.5 sm:border-2"></div>
+                     <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-zinc-950 sm:w-2.5 sm:h-2.5 sm:border-2 ${user.accountTier === 'PREMIUM' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
                    </div>
-                   <button onClick={() => setUser(null)} className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all hidden sm:block" title="Terminate Session">
+                   <button onClick={handleLogout} className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all hidden sm:block" title="Terminate Session">
                      <LogOut size={20} />
                    </button>
                  </div>
@@ -411,7 +622,26 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
-
+      
+      {/* VERIFICATION BANNER */}
+      {user && user.accountStatus === 'PENDING_VERIFICATION' && (
+        <div className="bg-orange-600 text-white p-3 text-center animate-in slide-in-from-top duration-500 relative z-[200]">
+          <div className="flex items-center justify-center gap-3">
+            <Mail size={16} className="animate-pulse" />
+            <p className="text-[10px] font-black uppercase tracking-widest">
+              Action Required: Please verify your email to unlock credits and start editing.
+            </p>
+            <button 
+              onClick={() => setShowAuth(true)}
+              className="px-3 py-1 bg-white text-orange-600 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-zinc-100 transition-all"
+            >
+              Verify Now
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* ... rest of the component matches existing logic but is included implicitly ... */}
       <main className="max-w-7xl mx-auto px-6 py-12 sm:py-24 relative z-10">
         {step === 1 && (
           <div className="flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-1000">
@@ -567,9 +797,12 @@ const App: React.FC = () => {
         <p className="text-zinc-400 text-sm font-medium tracking-wide px-6">
           &copy; 2026 MrDelivery AI Studio • Proprietary Infrastructure of MrDelivery AI Agency
         </p>
-        <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em] mt-3">
-          mrdelivery.ro
-        </p>
+        <button 
+          onClick={() => setShowSupportModal(true)} 
+          className="text-zinc-600 text-[10px] font-bold uppercase tracking-[0.3em] mt-3 hover:text-orange-500 transition-colors"
+        >
+          Refund Policy & Support
+        </button>
       </footer>
 
       <style>{`

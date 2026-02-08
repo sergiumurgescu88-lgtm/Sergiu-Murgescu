@@ -14,9 +14,41 @@ const getBase64Data = (dataUrl: string) => {
 };
 
 /**
- * PRODUCTION ARCHETYPES & PROTOCOLS
+ * PRODUCTION PROTOCOLS: PREP TEAM & DETECTION SQUAD
+ * Hyper-refined prompts for 100% photorealistic, non-artificial execution.
  */
-// ... (Keeping the protocols from the previous turn for brevity but ensuring logic is sound)
+export const PREP_TEAM_PROMPT = `[PROTOCOL 3: PREP TEAM - HYPER-REALISTIC MINIATURE KITCHEN]
+MANDATE: Add 3-5 hyper-realistic miniature humans (scale 1:12-1:20) actively preparing the dish. 
+ABSOLUTE REQUIREMENT: Characters MUST look like 100% REAL HUMANS with photorealistic skin and unique facial features. NO PLASTIC, NO CGI, and NO TOY-LIKE appearance.
+CHARACTER DETAILS:
+- 3-5 unique individuals with distinct ethnicities, facial hair, and ages (25-55). 
+- FACE REALISM: Visible pores, natural skin tone variations, subtle veins, laugh lines, and genuine human imperfections. Eyes must have realistic iris detail and sharp catchlights.
+- EXPRESSIONS: Deep concentration, collaborative focus, and natural eye contact between team members as they work.
+DYNAMIC ACTIONS & TOOLS: 
+- 1 Chef wiping hands on a linen apron mid-task (visible fabric texture).
+- 1 Sous Chef whisking with visible wrist rotation in a scaled stainless steel bowl (1:15 scale).
+- 1 Prep Cook mid-chopping motion (knife blade mid-cut) on a scaled wooden grain board.
+- 1 Assistant sprinkling micro-spices with visible particles caught in the air.
+- 1 Member carrying a heavy ingredient (e.g., a giant peppercorn or garlic clove) with visible physical strain in posture and muscles.
+- 1 Person tasting sauce with a tiny scaled metal spoon near their mouth.
+INTEGRATION: Characters physically interact with ingredients (standing on bread/vegetables, leaning against bowls).
+ATMOSPHERE: Warm collaborative kitchen energy (3200-4500K). Soft natural lighting with subsurface scattering on skin.
+TOOLS: Hyper-detailed miniature metal and wood tools (1:12-1:20 scale) with reflections, scratches, and authentic wear.`;
+
+export const DETECTION_SQUAD_PROMPT = `[PROTOCOL 4: DETECTION SQUAD - FORENSIC FOOD INVESTIGATION]
+MANDATE: Add 3-5 hyper-realistic miniature detectives investigating the dish as a crime scene evidence.
+ABSOLUTE REQUIREMENT: Characters MUST be real humans with unique faces and natural skin textures. NOT PLASTIC, NOT ARTIFICIAL.
+CHARACTER DETAILS:
+- 1-2 Lead Detectives in trench coats with visible fabric grain, 2-3 Forensic Specialists in clinical lab gear and gloves.
+- FACE REALISM: Intense scrutiny, furrowed brows, analytical expressions. Skin shows high-detail pores and natural moisture/sweat highlights under harsh investigative lights.
+- DYNAMIC ACTIONS & FORENSIC TOOLS: 
+- Lead detective examining a garnish through a scaled magnifying glass (MUST show realistic optical refraction and distortion through the lens).
+- Specialist using precision metal tweezers to carefully lift a micro-ingredient into a glass specimen vial.
+- Assistant placing yellow numbered evidence tents (1-5) strategically around the dish ingredients.
+- Team member pointing at a "clue" while explaining findings to an observer with active gestures.
+ATMOSPHERE: Dramatic noir/investigative mood. Cool/neutral tones (4500-5500K). Hard directional lighting with deep cinematic shadows.
+ENVIRONMENT: Volumetric flashlight beams cutting through the air with visible micro-dust particles catching the light.
+TECHNICAL: 100% photorealistic execution, consistent miniature scale (1:15), anatomically correct human proportions.`;
 
 export const generateDishImage = async (
   dishName: string,
@@ -58,7 +90,7 @@ export const generateDishImage = async (
     config: { 
       imageConfig: { 
         aspectRatio, 
-        imageSize: size // Supports 1K, 2K, 4K
+        imageSize: size 
       } 
     },
   });

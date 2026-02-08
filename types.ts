@@ -130,12 +130,28 @@ export type GenerationConfig = {
 // Authentication & Credit Types
 export type Currency = 'EUR' | 'USD' | 'RON';
 export type UserRole = 'user' | 'admin';
+export type AccountTier = 'FREE' | 'PREMIUM';
+export type AccountStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED';
 
 export interface User {
   id: string;
+  googleId?: string;
   email: string;
   fullName: string;
-  credits: number;
+  
+  // Credit System
+  credits: number; // Total (Free + Purchased) for backward compatibility
+  freeCredits: number;
+  purchasedCredits: number;
+  
+  // Usage Tracking
+  dailyUsage: number;
+  lastUsageDate: string; // ISO String to track 24h window
+  
+  // Account Status
+  accountTier: AccountTier;
+  accountStatus: AccountStatus;
+  
   profilePhoto?: string;
   preferredCurrency: Currency;
   isLoggedIn: boolean;
@@ -148,7 +164,7 @@ export interface User {
 
 export interface CreditTransaction {
   id: string;
-  type: 'purchase' | 'usage' | 'bonus' | 'refund';
+  type: 'purchase' | 'usage' | 'bonus' | 'refund' | 'expiration';
   amount: number;
   balanceAfter: number;
   description: string;
