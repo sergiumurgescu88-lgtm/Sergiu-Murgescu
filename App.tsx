@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Camera, Settings2, Sliders, Key, Sparkles, Upload, MapPin, Image as ImageIcon, X, AlertTriangle, Download, ExternalLink, Globe, Copy, Check, FileCode, Briefcase, Snowflake, Info, Table, MousePointer2, Rocket, Maximize, Globe2, Loader2, AlertCircle, CreditCard, Coins, User as UserIcon, LogOut, ShoppingCart, ShieldCheck, Plus, CheckCircle, HelpCircle, Mail } from 'lucide-react';
 import MenuParser from './components/MenuParser';
@@ -65,7 +64,7 @@ const MOCK_USERS: User[] = [
 ];
 
 const MOCK_LOGS: ActivityLog[] = [
-  { id: 'l1', userId: '2', userName: 'Chef Paul Bocuse', action: 'PRODUCE', details: 'Pizza Michelin - Standard (1:1)', creditsAffected: -1, timestamp: new Date().toISOString() },
+  { id: 'l1', userId: '2', userName: 'Chef Paul Bocuse', action: 'PRODUCE', details: 'Pizza Michelin - Standard (1:1)', creditsAffected: 0, timestamp: new Date().toISOString() },
 ];
 
 interface Toast {
@@ -98,7 +97,6 @@ const App: React.FC = () => {
   const [showUserDashboard, setShowUserDashboard] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [hasShownExpiryWarning, setHasShownExpiryWarning] = useState(false);
 
   // Global Infrastructure Tracking
   const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
@@ -110,18 +108,6 @@ const App: React.FC = () => {
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        if (parsedUser.freeCredits === undefined) {
-          parsedUser.freeCredits = parsedUser.credits;
-          parsedUser.purchasedCredits = 0;
-          parsedUser.accountTier = 'FREE';
-          parsedUser.dailyUsage = 0;
-          parsedUser.lastUsageDate = new Date().toISOString();
-        }
-        // Migration for existing sessions without accountStatus
-        if (!parsedUser.accountStatus) {
-            parsedUser.accountStatus = 'ACTIVE';
-            parsedUser.isEmailVerified = true;
-        }
         setUser(parsedUser);
       } catch (e) {
         console.error("Failed to restore session", e);
@@ -148,50 +134,9 @@ const App: React.FC = () => {
     localStorage.setItem('mrdelivery_db_users', JSON.stringify(allUsers));
   }, [allUsers]);
 
-  // DAILY LIMIT RESET & EXPIRATION LOGIC
-  useEffect(() => {
-    if (!user) return;
-    
-    let updated = false;
-    let newUser = { ...user };
-    const now = new Date();
-    
-    // 1. Daily Limit Reset (24h Window)
-    // If more than 24h have passed since the recorded start of the window, reset usage.
-    const lastUsage = new Date(user.lastUsageDate);
-    if (now.getTime() - lastUsage.getTime() > 24 * 60 * 60 * 1000) {
-      if (newUser.dailyUsage > 0) {
-        newUser.dailyUsage = 0;
-        // We don't reset lastUsageDate here. It gets reset on the NEXT edit.
-        updated = true;
-      }
-    }
-
-    // 2. Free Credit Expiration (30 Days)
-    if (user.freeCredits > 0) {
-      const joinDate = new Date(user.joinedAt);
-      const daysSinceJoin = (now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24);
-      
-      if (daysSinceJoin > 30) {
-        newUser.freeCredits = 0;
-        newUser.credits = newUser.purchasedCredits;
-        updated = true;
-        addToast('error', 'Free Credits Expired', 'Free credits expired. Upgrade to Premium!');
-      } else if (daysSinceJoin > 23 && !hasShownExpiryWarning) {
-        // 3. Expiration Warning (7 Days before)
-        addToast('info', 'Expiration Warning', 'Your free credits expire in 7 days!');
-        setHasShownExpiryWarning(true);
-      }
-    }
-
-    if (updated) {
-      setUser(newUser);
-      setAllUsers(prev => prev.map(u => u.id === user.id ? newUser : u));
-    }
-  }, [user, hasShownExpiryWarning]);
-
   const activeGenerationsCount = dishes.filter(d => d.isLoading || d.isEditing).length;
-  const isGenerationLimitReached = activeGenerationsCount >= 3;
+  // LIMITS REMOVED: isGenerationLimitReached is always false
+  const isGenerationLimitReached = false;
 
   useEffect(() => { checkApiKey(); }, []);
 
@@ -241,77 +186,16 @@ const App: React.FC = () => {
     setStep(2);
   };
 
-  // CORE CREDIT LOGIC
+  // LIMITS REMOVED: handleChargeCredit just logs activity
   const handleChargeCredit = (action: string, details: string) => {
     if (!user) return;
 
-    // ACCOUNT STATUS CHECK
-    if (user.accountStatus !== 'ACTIVE') {
-      addToast('error', 'Action Blocked', 'Please confirm your email to start editing.');
-      setShowAuth(true); // Open auth modal to show verification/status
-      throw new Error("Account not active");
-    }
-
     const now = new Date();
-    const lastUsage = new Date(user.lastUsageDate);
-    
-    // Check if we need to reset the daily counter before processing
-    let currentDailyUsage = user.dailyUsage;
-    let currentLastUsageDate = user.lastUsageDate;
-
-    if (now.getTime() - lastUsage.getTime() > 24 * 60 * 60 * 1000) {
-      currentDailyUsage = 0;
-    }
-
-    // Check Daily Limits
-    const dailyLimit = user.accountTier === 'PREMIUM' ? 100 : 10;
-    
-    if (currentDailyUsage >= dailyLimit) {
-      const resetTime = new Date(lastUsage.getTime() + 24*60*60*1000);
-      const diffMs = resetTime.getTime() - now.getTime();
-      const hoursLeft = Math.ceil(diffMs / (1000 * 60 * 60));
-      
-      const msg = user.accountTier === 'FREE' 
-        ? `10 edits used. Upgrade for 100/day!` 
-        : `100 edits used. Resets in ${hoursLeft}h.`;
-        
-      addToast('error', 'Daily Limit Reached', msg);
-      throw new Error("Daily limit reached");
-    }
-
-    // Determine Deduction Source (FIFO / Priority)
-    let newFree = user.freeCredits;
-    let newPurchased = user.purchasedCredits;
-    let deductedFrom = '';
-
-    if (newFree > 0) {
-      newFree--;
-      deductedFrom = 'Free Balance';
-    } else if (newPurchased > 0) {
-      newPurchased--;
-      deductedFrom = 'Purchased Balance';
-    } else {
-      addToast('error', 'Out of credits!', 'Purchase a package to continue.');
-      throw new Error("Insufficient credits");
-    }
-
-    // Update Tier if out of purchased credits
-    const newTier = newPurchased > 0 ? 'PREMIUM' : 'FREE';
-    
-    // Start 24h window if this is the first edit (or first after reset)
-    if (currentDailyUsage === 0) {
-        currentLastUsageDate = now.toISOString();
-    }
-
     const updatedUser: User = { 
       ...user, 
-      freeCredits: newFree,
-      purchasedCredits: newPurchased,
-      credits: newFree + newPurchased,
       totalGenerations: user.totalGenerations + 1,
-      dailyUsage: currentDailyUsage + 1,
-      lastUsageDate: currentLastUsageDate,
-      accountTier: newTier
+      dailyUsage: user.dailyUsage + 1,
+      lastUsageDate: now.toISOString(),
     };
     
     setUser(updatedUser);
@@ -321,19 +205,12 @@ const App: React.FC = () => {
       userId: user.id,
       userName: user.fullName,
       action: action,
-      details: `${details} (${deductedFrom})`,
-      creditsAffected: -1,
+      details: `${details}`,
+      creditsAffected: 0,
       timestamp: new Date().toISOString()
     }, ...prev]);
 
-    // Notifications
-    if (newFree === 0 && newPurchased > 0 && user.freeCredits > 0) {
-      addToast('info', 'Free Credits Depleted', 'Now using Purchased Credits.');
-    } else if (newFree + newPurchased === 5) {
-      addToast('info', 'Low Balance Warning', 'Only 5 credits remaining.');
-    } else {
-      addToast('success', 'Production Successful!', `1 credit used. ${newFree + newPurchased} remaining.`);
-    }
+    addToast('success', 'Production Successful!', `Unlimited access active.`);
   };
 
   const updateDish = (id: string, updates: Partial<Dish>) => {
@@ -379,22 +256,12 @@ const App: React.FC = () => {
     setUser(newUser);
     setAllUsers(prev => {
       const existing = prev.find(u => u.email === newUser.email);
-      if (existing) return prev.map(u => u.email === newUser.email ? { ...u, isLoggedIn: true, accountStatus: newUser.accountStatus, freeCredits: newUser.freeCredits, credits: newUser.credits } : u);
+      if (existing) return prev.map(u => u.email === newUser.email ? { ...u, isLoggedIn: true } : u);
       return [...prev, { ...newUser, joinedAt: new Date().toISOString(), totalGenerations: 0 }];
     });
     
-    // Only close Auth if user is active (fully verified) or we want to allow "limited preview"
-    // For smoother UX, we close Auth but show banner if pending.
     setShowAuth(false);
-    
-    // Welcome Notification
-    if (newUser.accountStatus === 'ACTIVE' && newUser.totalGenerations === 0 && newUser.freeCredits === 50) {
-      addToast('success', 'Welcome! 50 free credits granted.', 'Expires in 30 days.');
-    } else if (newUser.accountStatus === 'PENDING_VERIFICATION') {
-      addToast('info', 'Verification Required', 'Please confirm your email to start editing.');
-    } else {
-      addToast('success', `Session established for ${newUser.fullName}`);
-    }
+    addToast('success', `Welcome back, ${newUser.fullName}! Unlimited access granted.`);
   };
 
   const handleLogout = () => {
@@ -403,68 +270,18 @@ const App: React.FC = () => {
     addToast('info', 'Securely logged out');
   };
 
-  const handlePurchase = (credits: number) => {
-    if (user) {
-      if (user.accountStatus !== 'ACTIVE') {
-        addToast('error', 'Purchase Blocked', 'Please verify email before purchasing.');
-        return;
-      }
-      const updatedUser = { 
-        ...user, 
-        purchasedCredits: user.purchasedCredits + credits,
-        credits: user.freeCredits + user.purchasedCredits + credits,
-        accountTier: 'PREMIUM' as const
-      };
-      setUser(updatedUser);
-      setAllUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
-      setActivityLogs(prev => [{
-        id: Math.random().toString(36).substr(2, 9),
-        userId: user.id,
-        userName: user.fullName,
-        action: 'PURCHASE',
-        details: 'Liquidity Injection: Credit Package',
-        creditsAffected: credits,
-        timestamp: new Date().toISOString()
-      }, ...prev]);
-      setShowPricing(false);
-      
-      // Exact notification string from Prompt 2
-      addToast('success', `Success! ${credits} credits added.`, "You're now Premium!");
-    }
-  };
-
   const updateOtherUserCredits = (userId: string, amount: number) => {
-    const targetUser = allUsers.find(u => u.id === userId);
     setAllUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        // Admin updates affect purchased credits mainly
-        const newPurchased = Math.max(0, u.purchasedCredits + amount);
         const updated = { 
           ...u, 
-          purchasedCredits: newPurchased,
-          credits: u.freeCredits + newPurchased
+          credits: u.credits + amount
         };
         if (user && user.id === userId) setUser(updated);
         return updated;
       }
       return u;
     }));
-    
-    setActivityLogs(prev => [{
-      id: Math.random().toString(36).substr(2, 9),
-      userId: user?.id || 'admin',
-      userName: user?.fullName || 'Infrastructure System',
-      action: 'ADMIN_ADJUST',
-      details: `Credit Adjustment: ${targetUser?.fullName} (${amount > 0 ? '+' : ''}${amount})`,
-      creditsAffected: amount,
-      timestamp: new Date().toISOString()
-    }, ...prev]);
-  };
-
-  const getCreditColor = (credits: number) => {
-    if (credits >= 20) return 'text-green-500';
-    if (credits >= 5) return 'text-orange-500';
-    return 'text-red-500';
   };
 
   if (checkingKey) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" size={40} strokeWidth={1} /></div>;
@@ -482,7 +299,7 @@ const App: React.FC = () => {
          <div className="max-w-md mb-10 p-10 bg-zinc-900/40 border border-white/5 rounded-[2.5rem] text-left backdrop-blur-3xl shadow-2xl">
            <h4 className="text-orange-500 font-bold flex items-center gap-3 mb-4 uppercase tracking-widest text-sm"><CreditCard size={20} /> Infrastructure Lock</h4>
            <p className="text-zinc-400 text-xs leading-relaxed mb-6">
-             Paid Studio Models require valid Cloud Billing. High-fidelity production (Gemini 3 Pro) consumes external compute units.
+             Studio Models require valid Cloud Billing. High-fidelity production (Gemini 3 Pro) consumes external compute units.
            </p>
            <a 
              href="https://ai.google.dev/gemini-api/docs/billing" 
@@ -503,7 +320,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#050505] text-zinc-200 selection:bg-orange-500/30 overflow-x-hidden relative">
       {isSnowing && <Snowfall />}
       {showAuth && <Auth onAuthComplete={handleAuthComplete} onClose={() => setShowAuth(false)} allUsers={allUsers} />}
-      {showPricing && <Pricing onPurchase={handlePurchase} onClose={() => setShowPricing(false)} currentCurrency={user?.preferredCurrency || 'EUR'} onCurrencyChange={(c) => user && setUser({...user, preferredCurrency: c})} />}
+      {showPricing && <Pricing onPurchase={() => {}} onClose={() => setShowPricing(false)} currentCurrency={user?.preferredCurrency || 'EUR'} onCurrencyChange={(c) => user && setUser({...user, preferredCurrency: c})} />}
       <SupportPolicyModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} user={user} />
       
       {showAdmin && user?.role === 'admin' && (
@@ -583,28 +400,20 @@ const App: React.FC = () => {
                      <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest hidden md:inline">Admin</span>
                    </button>
                  )}
-                 <button 
-                   onClick={() => setShowPricing(true)}
-                   title="Credits available for image generation"
-                   className="flex items-center gap-1.5 sm:gap-4 px-2.5 sm:px-5 py-2 sm:py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl sm:rounded-2xl transition-all group shadow-xl ring-1 ring-white/5"
-                 >
-                   <Coins size={14} className={`${getCreditColor(user.credits)} sm:w-[18px] sm:h-[18px]`} />
+                 <div className="flex items-center gap-1.5 sm:gap-4 px-2.5 sm:px-5 py-2 sm:py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl sm:rounded-2xl transition-all shadow-xl ring-1 ring-white/5">
                    <div className="flex flex-col items-start leading-none">
-                     <span className={`text-xs sm:text-sm font-black ${getCreditColor(user.credits)} transition-colors`}>{user.credits}</span>
+                     <span className={`text-xs sm:text-sm font-black text-green-500 transition-colors uppercase`}>Unlimited</span>
                      <span className="text-[6px] sm:text-[8px] font-black text-zinc-600 uppercase tracking-tighter hidden sm:inline">
-                       {user.accountTier === 'FREE' ? 'Free Credits' : 'Credits'}
+                       Active Session
                      </span>
                    </div>
-                   <div className="ml-1 p-0.5 sm:p-1 bg-orange-600 text-white rounded-md sm:rounded-lg group-hover:scale-110 transition-all shadow-xl shadow-orange-950/40 hidden xs:flex">
-                     <Plus size={8} className="sm:w-[10px] sm:h-[10px]" />
-                   </div>
-                 </button>
+                 </div>
                  <div className="flex items-center gap-2 sm:gap-4 pl-1.5 sm:pl-6 border-l border-zinc-800">
                    <div className="relative group/avatar cursor-pointer shrink-0" onClick={() => setShowUserDashboard(true)}>
                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-[1rem] bg-zinc-800 flex items-center justify-center text-zinc-500 border border-zinc-700 overflow-hidden shadow-2xl ring-1 ring-white/10 group-hover/avatar:ring-orange-500/40 transition-all">
                        {user.profilePhoto ? <img src={user.profilePhoto} alt="" className="w-full h-full object-cover" /> : <UserIcon size={16} className="sm:w-5 sm:h-5" />}
                      </div>
-                     <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-zinc-950 sm:w-2.5 sm:h-2.5 sm:border-2 ${user.accountTier === 'PREMIUM' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
+                     <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-zinc-900 sm:w-2.5 sm:h-2.5 sm:border-2 bg-green-500`}></div>
                    </div>
                    <button onClick={handleLogout} className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all hidden sm:block" title="Terminate Session">
                      <LogOut size={20} />
@@ -623,25 +432,6 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      {/* VERIFICATION BANNER */}
-      {user && user.accountStatus === 'PENDING_VERIFICATION' && (
-        <div className="bg-orange-600 text-white p-3 text-center animate-in slide-in-from-top duration-500 relative z-[200]">
-          <div className="flex items-center justify-center gap-3">
-            <Mail size={16} className="animate-pulse" />
-            <p className="text-[10px] font-black uppercase tracking-widest">
-              Action Required: Please verify your email to unlock credits and start editing.
-            </p>
-            <button 
-              onClick={() => setShowAuth(true)}
-              className="px-3 py-1 bg-white text-orange-600 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-zinc-100 transition-all"
-            >
-              Verify Now
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* ... rest of the component matches existing logic but is included implicitly ... */}
       <main className="max-w-7xl mx-auto px-6 py-12 sm:py-24 relative z-10">
         {step === 1 && (
           <div className="flex flex-col items-center justify-center min-h-[50vh] animate-in fade-in duration-1000">
@@ -697,33 +487,28 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
                       <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">
-                        Studio Slots: {activeGenerationsCount}/3
+                        Unlimited Production Mode Active
                       </span>
                     </div>
-                    {isGenerationLimitReached && (
-                      <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-2">
-                        <Loader2 size={14} className="animate-spin" /> QUEUE FULL
-                      </span>
-                    )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2.5 max-h-[400px] overflow-y-auto p-6 bg-zinc-950/50 rounded-[2.5rem] border border-zinc-900 custom-scrollbar overflow-visible ring-1 ring-inset ring-white/5">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-2.5 p-4 sm:p-6 bg-zinc-950/50 rounded-[1.5rem] sm:rounded-[2.5rem] border border-zinc-900 ring-1 ring-inset ring-white/5">
                   {Object.values(PhotoStyle).map((s) => (
-                    <div key={s} className="relative group">
+                    <div key={s} className="relative group w-full sm:w-auto">
                       <button 
                         onClick={() => setStyle(s)} 
-                        className={`px-6 py-3 text-[10px] font-bold tracking-widest rounded-xl transition-all duration-500 border uppercase ${
+                        className={`w-full sm:w-auto px-3 sm:px-6 py-3 sm:py-3 text-[9px] sm:text-[10px] font-bold tracking-widest rounded-xl transition-all duration-500 border uppercase ${
                           style === s 
                             ? 'bg-orange-600 border-orange-400 text-white shadow-[0_15px_30px_rgba(234,88,12,0.4)] -translate-y-1 scale-105 z-10' 
                             : 'bg-zinc-900/80 border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-orange-500/40 hover:bg-zinc-800'
                         }`}
                       >
-                        {s}
+                        <span className="truncate block w-full">{s}</span>
                       </button>
                       
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-72 p-5 bg-zinc-950/95 border border-zinc-800 rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] pointer-events-none backdrop-blur-2xl ring-1 ring-white/10 translate-y-2 group-hover:translate-y-0">
-                        <div className="text-xs text-white font-black mb-2 border-b border-zinc-800 pb-2 uppercase tracking-widest">{s}</div>
-                        <p className="text-[11px] text-zinc-500 leading-relaxed font-medium">{STYLE_TOOLTIPS[s]}</p>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 sm:mb-4 w-40 sm:w-72 p-4 sm:p-5 bg-zinc-950/95 border border-zinc-800 rounded-xl sm:rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.8)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] pointer-events-none backdrop-blur-2xl ring-1 ring-white/10 translate-y-2 group-hover:translate-y-0 text-center">
+                        <div className="text-[10px] sm:text-xs text-white font-black mb-2 border-b border-zinc-800 pb-2 uppercase tracking-widest">{s}</div>
+                        <p className="text-[9px] sm:text-[11px] text-zinc-500 leading-relaxed font-medium">{STYLE_TOOLTIPS[s]}</p>
                         <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-zinc-950 border-r border-b border-zinc-800 transform rotate-45"></div>
                       </div>
                     </div>

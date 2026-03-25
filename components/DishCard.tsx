@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dish, ImageSize, PhotoStyle, PhotoQuality, AspectRatio } from '../types';
 import { 
@@ -49,9 +48,9 @@ const ActionButton = ({
       disabled={disabled}
       className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter disabled:opacity-30 disabled:cursor-not-allowed group/btn w-full ${
         isMagic
-          ? 'bg-gradient-to-r from-orange-600/20 to-red-600/20 border-orange-500/40 text-orange-400 hover:text-white hover:from-orange-600 hover:to-red-600 shadow-[0_0_15px_rgba(234,88,12,0.1)]'
+          ? 'bg-gradient-to-r from-orange-600/20 to-red-600/20 border-orange-500/40 text-orange-400 hover:text-white hover:from-orange-600 hover:to-red-600 shadow-[0_0_15px_rgba(234,88,12,0.15)]'
           : isActive 
-            ? 'bg-orange-500/10 border-orange-500/40 text-orange-400 shadow-[0_0_15px_rgba(234,88,12,0.1)]' 
+            ? 'bg-orange-500/10 border-orange-500/40 text-orange-400 shadow-[0_0_15px_rgba(234,88,12,0.15)]' 
             : 'bg-zinc-900/40 hover:bg-zinc-800/80 border-zinc-800/50 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 shadow-sm'
       }`}
     >
@@ -199,7 +198,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
   const [isListening, setIsListening] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
   
-  const [pendingAction, setPendingAction] = useState<{ type: string; callback: () => void; label: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: string; callback: (arg?: any) => void; label: string } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -238,14 +237,8 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
     }
   };
 
-  const confirmPaidAction = (label: string, callback: () => void, type: string) => {
-    if (userCredits < 1) {
-      setPendingAction(null);
-      // Prompt 3: Specific insufficient funds message
-      addToast('error', 'Insufficient Credits', `You need 1 credit to edit. Current balance: ${userCredits} credits.`);
-      onOpenPricing();
-      return;
-    }
+  // LIMITS REMOVED: confirmPaidAction no longer checks credits
+  const confirmPaidAction = (label: string, callback: (arg?: any) => void, type: string) => {
     setPendingAction({ type, callback, label });
   };
 
@@ -278,27 +271,26 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
         if (onKeyError) onKeyError();
       }
       onUpdate(dish.id, { isLoading: false, error: errorMsg });
-      // Prompt 3: Specific technical error message
-      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
+      addToast('error', 'Technical Error', 'Production failed due to server error.');
     }
   };
 
-  const executeEdit = async (customPrompt?: string) => {
+  const executeEdit = async (customPrompt?: string | React.MouseEvent) => {
     setPendingAction(null);
-    const promptToUse = customPrompt || editPrompt;
-    if (!dish.imageUrl || !promptToUse.trim()) return;
+    const promptValue = typeof customPrompt === 'string' ? customPrompt : editPrompt;
+    
+    if (!dish.imageUrl || !promptValue || !promptValue.trim()) return;
     
     onUpdate(dish.id, { isEditing: true });
     try {
-      const newImageUrl = await editDishImage(dish.imageUrl, promptToUse);
+      const newImageUrl = await editDishImage(dish.imageUrl, promptValue);
       onCharge('EDIT', `Magic Edit: ${dish.name}`);
       onUpdate(dish.id, { imageUrl: newImageUrl, isEditing: false });
       setIsEditMode(false);
-      if (!customPrompt) setEditPrompt('');
+      if (typeof customPrompt !== 'string') setEditPrompt('');
     } catch (err: any) {
       onUpdate(dish.id, { isEditing: false, error: "Edit failed." });
-      // Prompt 3: Specific technical error message
-      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
+      addToast('error', 'Technical Error', 'Edit failed due to server error.');
     }
   };
 
@@ -313,8 +305,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
       setShowNutrition(true);
     } catch (err: any) {
       onUpdate(dish.id, { isAnalyzing: false });
-      // Prompt 3: Specific technical error message
-      addToast('error', 'Technical Error', 'Edit failed due to server error. Your credit was NOT deducted.');
+      addToast('error', 'Technical Error', 'Analysis failed due to server error.');
     }
   };
 
@@ -351,7 +342,6 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
     setIsMagicModalOpen(false);
   };
 
-  const isStudioFull = isGenerationLimitReached && !dish.isLoading && !dish.isEditing;
   const activeLogo = dish.logoImage || logoImage;
   const activeLocation = dish.locationImage || locationImage;
 
@@ -362,13 +352,13 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
       <input type="file" ref={logoInputRef} onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" className="hidden" />
       <input type="file" ref={locationInputRef} onChange={(e) => handleFileUpload(e, 'loc')} accept="image/*" className="hidden" />
 
-      {/* Credit Confirmation Modal */}
+      {/* Confirmation Modal */}
       {pendingAction && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] w-full max-w-sm p-10 text-center shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center text-orange-500 mx-auto mb-6"><Coins size={32} /></div>
+            <div className="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center text-orange-500 mx-auto mb-6"><Sparkles size={32} /></div>
             <h3 className="text-2xl font-serif font-bold text-white mb-2">{pendingAction.label}</h3>
-            <p className="text-sm text-zinc-400 mb-8 leading-relaxed">Utilize 1 credit? (Balance: {userCredits})</p>
+            <p className="text-sm text-zinc-400 mb-8 leading-relaxed">Proceed with production? Access is unlimited.</p>
             <div className="space-y-3">
               <button onClick={pendingAction.callback} className="w-full py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl hover:opacity-90 transition-all">Confirm</button>
               <button onClick={() => setPendingAction(null)} className="w-full py-4 bg-zinc-800 text-zinc-500 font-black uppercase tracking-widest text-xs rounded-2xl hover:text-white transition-all">Cancel</button>
@@ -409,7 +399,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
       )}
 
       {/* Main Card UI */}
-      <div className={`bg-zinc-900/60 border rounded-[2rem] overflow-hidden shadow-2xl flex flex-col h-full transition-all duration-500 backdrop-blur-sm ${isStudioFull ? 'border-zinc-800 opacity-60' : 'border-zinc-800 hover:border-orange-500/30'}`}>
+      <div className={`bg-zinc-900/60 border rounded-[2rem] overflow-hidden shadow-2xl flex flex-col h-full transition-all duration-500 backdrop-blur-sm border-zinc-800 hover:border-orange-500/30`}>
         <div className="relative w-full aspect-[4/3] bg-zinc-950 overflow-hidden cursor-pointer group" onClick={() => { if(dish.imageUrl) setIsExpanded(true); }}>
           {dish.imageUrl ? (
             <img src={dish.imageUrl} alt={dish.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
@@ -439,11 +429,11 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
           <div className="mt-auto space-y-3">
             <button 
               onClick={() => confirmPaidAction(dish.imageUrl ? 'Regenerate' : 'Generate', executeGeneration, 'produce')} 
-              disabled={isStudioFull || dish.isLoading} 
+              disabled={dish.isLoading} 
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-red-600 text-white hover:opacity-90 active:scale-95 shadow-xl transition-all flex items-center justify-center gap-3 text-xs font-black uppercase tracking-[0.2em]"
             >
               <RefreshCw size={18} className={dish.isLoading ? 'animate-spin' : ''} /> 
-              {dish.imageUrl ? 'REGENERATE' : 'GENERATE (1 CR)'}
+              {dish.imageUrl ? 'REGENERATE' : 'GENERATE'}
             </button>
 
             {/* THE 12-FUNCTION GRID SYSTEM */}
@@ -511,7 +501,7 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
             <div className="mb-10 text-center">
               <div className="w-16 h-16 bg-orange-600/20 rounded-3xl flex items-center justify-center text-orange-500 mb-6 mx-auto shadow-xl"><Edit2 size={32} /></div>
               <h3 className="text-3xl font-serif font-bold text-white">Magic Retouch</h3>
-              <p className="text-xs text-zinc-500 mt-2 font-black uppercase tracking-widest">1 Credit Required</p>
+              <p className="text-xs text-zinc-500 mt-2 font-black uppercase tracking-widest">Unlimited Access Enabled</p>
             </div>
             <div className="space-y-6">
               <div className="relative">
@@ -530,10 +520,10 @@ const DishCard: React.FC<DishCardProps> = ({ dish, userCredits, currentStyle, cu
               </div>
               <button 
                 onClick={() => confirmPaidAction('Magic Edit', executeEdit, 'edit')} 
-                disabled={!editPrompt.trim() || isStudioFull} 
+                disabled={!editPrompt.trim()} 
                 className="w-full py-5 rounded-2xl bg-gradient-to-r from-orange-600 to-red-600 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-xl shadow-orange-950/20 active:scale-95 transition-all"
               >
-                Apply Magic (1 Credit)
+                Apply Magic
               </button>
             </div>
           </div>

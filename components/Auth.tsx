@@ -9,12 +9,11 @@ interface AuthProps {
   allUsers: UserType[];
 }
 
-type AuthMode = 'initial' | 'google-auth' | 'verification-sent' | 'suspended' | 'success';
+type AuthMode = 'initial' | 'google-auth' | 'suspended' | 'success';
 
 const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
   const [mode, setMode] = useState<AuthMode>('initial');
   const [authProgress, setAuthProgress] = useState(0);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Temporary state for the new/current user during the flow
@@ -33,9 +32,9 @@ const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
       fullName: name,
       profilePhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`,
       
-      // Initial Credit System State (NO CREDITS UNTIL VERIFIED)
-      credits: 0,
-      freeCredits: 0,
+      // Initial Credit System State (GRANTED IMMEDIATELY)
+      credits: 50,
+      freeCredits: 50,
       purchasedCredits: 0,
       
       // Usage Initialization
@@ -44,10 +43,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
       
       // Account Status
       accountTier: 'FREE',
-      accountStatus: 'PENDING_VERIFICATION',
+      accountStatus: 'ACTIVE',
       
       isLoggedIn: true,
-      isEmailVerified: false,
+      isEmailVerified: true,
       preferredCurrency: 'EUR',
       role: 'user',
       joinedAt: now,
@@ -90,53 +89,22 @@ const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
           return;
         }
         
-        // If pending verification, show the verification screen again
-        if (existingUser.accountStatus === 'PENDING_VERIFICATION') {
-          setTempUser(existingUser);
-          setMode('verification-sent');
-          return;
-        }
-
         // Active user login
         onAuthComplete({
           ...existingUser,
           isLoggedIn: true,
           lastLogin: new Date().toISOString()
         });
+        // For existing users, we usually just close the modal via onAuthComplete in parent,
+        // but if we want to show a "Welcome Back" we could.
+        // For now, let's assume onAuthComplete handles the transition.
       } else {
-        // New User Creation
+        // New User Creation - IMMEDIATE ACTIVATION
         const newUser = createNewUser(lowerEmail, customGoogleName);
         setTempUser(newUser);
-        setMode('verification-sent');
-        // We do NOT call onAuthComplete here yet because they are pending.
-        // Or we do call it, but App.tsx restricts access based on status?
-        // Prompt says: "Redirect to waiting/pending page". 
-        // We'll keep them in this modal until they click the link, OR we can log them in as pending.
-        // Let's log them in as pending so the app can show the banner.
         onAuthComplete(newUser);
+        setMode('success');
       }
-    }, 2000);
-  };
-
-  const simulateEmailConfirmation = () => {
-    if (!tempUser) return;
-    
-    setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
-      
-      // Update user to ACTIVE and GRANT CREDITS
-      const activatedUser: UserType = {
-        ...tempUser,
-        accountStatus: 'ACTIVE',
-        isEmailVerified: true,
-        freeCredits: 50,
-        credits: 50 + tempUser.purchasedCredits
-      };
-      
-      setTempUser(activatedUser); // Update local state for success view
-      onAuthComplete(activatedUser); // Update global app state
-      setMode('success');
     }, 2000);
   };
 
@@ -178,48 +146,6 @@ const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
     );
   }
 
-  if (mode === 'verification-sent') {
-    return (
-      <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/95 backdrop-blur-3xl p-4 animate-in fade-in duration-300">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-[3rem] w-full max-w-md p-10 text-center shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-zinc-800">
-            <div className="h-full bg-orange-500 animate-pulse w-full"></div>
-          </div>
-          
-          <div className="w-20 h-20 bg-orange-500/10 rounded-3xl flex items-center justify-center text-orange-500 mx-auto mb-8 shadow-inner ring-1 ring-orange-500/20">
-            <MailCheck size={40} />
-          </div>
-          
-          <h2 className="text-3xl font-serif font-bold text-white mb-4">Confirm Your Email</h2>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-6">
-            We've sent a secure confirmation link to <span className="text-white font-bold">{tempUser?.email}</span>.
-          </p>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-8 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            Confirm to unlock 50 Free Credits
-          </p>
-          
-          <div className="space-y-4">
-            <button 
-              onClick={simulateEmailConfirmation}
-              disabled={isVerifying}
-              className="w-full py-5 bg-white text-zinc-900 font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl hover:bg-zinc-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
-            >
-              {isVerifying ? (
-                <><Loader2 className="animate-spin" size={18} /> Validating Token...</>
-              ) : (
-                <><Mail size={18} strokeWidth={2.5} /> Simulate Clicking Link (Debug)</>
-              )}
-            </button>
-            <div className="flex gap-2">
-              <button className="flex-1 py-4 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all">Resend Email</button>
-              <button onClick={onClose} className="flex-1 py-4 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all">I'll do it later</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (mode === 'success') {
     return (
       <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300">
@@ -227,10 +153,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthComplete, onClose, allUsers }) => {
           <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 mx-auto mb-6">
             <CheckCircle2 size={48} />
           </div>
-          <h2 className="text-3xl font-serif font-bold text-white mb-4">Account Activated!</h2>
+          <h2 className="text-3xl font-serif font-bold text-white mb-4">Welcome to Studio!</h2>
           <p className="text-zinc-400 mb-8 leading-relaxed">
-            Identity verified. Your Michelin production engine is now online. <br/>
-            <span className="text-green-500 font-bold">50 free credits have been added.</span>
+            Your mrdelivery account is ready. <br/>
+            <span className="text-green-500 font-bold">50 Free Credits have been added.</span>
           </p>
           <button 
             onClick={onClose}
